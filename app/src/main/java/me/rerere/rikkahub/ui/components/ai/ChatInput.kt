@@ -156,7 +156,7 @@ fun ChatInput(
     val toaster = LocalToaster.current
     val assistant = settings.getCurrentAssistant()
     val hazeTintColor = MaterialTheme.colorScheme.surfaceContainerLow
-    val glassEnabled = glassEnabled && !settings.displaySetting.performanceMode
+    val glassEnabled = settings.displaySetting.enableBlurEffect && !settings.displaySetting.performanceMode
     val glassAlpha = settings.displaySetting.glassIntensity
     val inputHazeStyle = HazeBlurStyle.Material3 {
         blurRadius(12.dp)
