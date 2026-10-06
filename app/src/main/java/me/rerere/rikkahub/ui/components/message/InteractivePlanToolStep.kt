@@ -1,6 +1,8 @@
 package me.rerere.rikkahub.ui.components.message
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
@@ -8,13 +10,16 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -25,6 +30,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import me.rerere.ai.ui.ToolApprovalState
@@ -34,14 +40,20 @@ import me.rerere.hugeicons.stroke.Task01
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.ai.tools.local.plan.InteractivePlanOperation
 import me.rerere.rikkahub.data.ai.tools.local.plan.InteractivePlanUserAnswer
+import me.rerere.rikkahub.data.ai.tools.local.plan.InteractivePlanView
 import me.rerere.rikkahub.data.ai.tools.local.plan.PlanQuestion
 import me.rerere.rikkahub.data.ai.tools.local.plan.PlanSelectionType
 import me.rerere.rikkahub.data.ai.tools.local.plan.PlanStep
 import me.rerere.rikkahub.data.ai.tools.local.plan.PlanStepStatus
 import me.rerere.rikkahub.data.ai.tools.local.plan.UserPlanStep
+import me.rerere.rikkahub.data.ai.tools.local.plan.buildPlanView
 import me.rerere.rikkahub.data.ai.tools.local.plan.decodePlanSnapshot
+import me.rerere.rikkahub.data.ai.tools.local.plan.toView
+import me.rerere.rikkahub.data.ai.tools.local.plan.unmetDependencies
+import me.rerere.rikkahub.data.ai.tools.local.plan.weightedProgress
 import me.rerere.rikkahub.data.ai.tools.local.plan.encodePlanUserAnswer
 import me.rerere.rikkahub.data.ai.tools.local.plan.parsePlanRequest
+import me.rerere.rikkahub.data.ai.tools.local.plan.parsePlanUserAnswer
 import me.rerere.rikkahub.ui.components.ui.ChainOfThoughtScope
 import me.rerere.rikkahub.ui.components.ui.DotLoading
 
@@ -49,6 +61,11 @@ import me.rerere.rikkahub.ui.components.ui.DotLoading
  * 交互式计划卡片的聊天流渲染。
  *
  * 和 ask_user 一样，不走注册式渲染框架，而是在 [ChatMessageToolStep] 里被直接分发。
+ *
+ * 生命周期：
+ * - 未回答：渲染可编辑的计划卡（改目标/步骤状态/回答条件问题）。
+ * - 已回答：把「模型原始请求」+「用户操作答案」合并成最终视图，**始终可展开回看**，
+ *   并展示进度、各步骤耗时与用户回答。
  */
 @Composable
 fun ChainOfThoughtScope.InteractivePlanToolStep(
@@ -56,10 +73,7 @@ fun ChainOfThoughtScope.InteractivePlanToolStep(
     loading: Boolean,
     onToolAnswer: ((toolCallId: String, answer: String) -> Unit)?,
 ) {
-    val isPending = tool.isPending
-    val isAnswered = tool.approvalState is ToolApprovalState.Answered
     val arguments = tool.inputAsJson()
-
     val initialRequest = remember(arguments) { parsePlanRequest(arguments) }
 
     var goal by remember(tool.toolCallId) { mutableStateOf(initialRequest.goal) }
@@ -70,7 +84,7 @@ fun ChainOfThoughtScope.InteractivePlanToolStep(
     }
     val questions = initialRequest.questions
 
-    var stepOrder by remember(tool.toolCallId) {
+    val stepOrder by remember(tool.toolCallId) {
         mutableStateOf(initialRequest.stepOrder.ifEmpty { initialRequest.steps.map { it.id } })
     }
 
@@ -78,6 +92,29 @@ fun ChainOfThoughtScope.InteractivePlanToolStep(
     val multiAnswers = remember(tool.toolCallId) { mutableStateMapOf<String, Set<String>>() }
 
     var expanded by remember(tool.toolCallId) { mutableStateOf(true) }
+
+    // 只读结果视图，优先级：
+    // 1) 用户已回答 -> 用「原始入参 + 用户答案」重建（修复确认后无法展开的 bug）；
+    // 2) 工具已执行（complete / cancel 收尾）-> 用工具输出里的计划快照重建；
+    // 3) 否则为 null，渲染可编辑的计划卡。
+    val resultView = remember(tool.toolCallId, tool.approvalState, tool.output, arguments) {
+        val state = tool.approvalState
+        when {
+            state is ToolApprovalState.Answered ->
+                buildPlanView(initialRequest, parsePlanUserAnswer(state.answer))
+
+            else -> tool.output
+                .filterIsInstance<UIMessagePart.Text>()
+                .firstOrNull()
+                ?.text
+                ?.let { decodePlanSnapshot(it) }
+                ?.toView()
+        }
+    }
+
+    val editorSteps = steps.values
+        .filter { it.id in stepOrder }
+        .sortedBy { stepOrder.indexOf(it.id) }
 
     ControlledChainOfThoughtStep(
         expanded = expanded,
@@ -101,24 +138,35 @@ fun ChainOfThoughtScope.InteractivePlanToolStep(
                 color = MaterialTheme.colorScheme.secondary,
             )
         },
+        extra = {
+            val progressSteps = resultView?.steps ?: editorSteps
+            if (progressSteps.isNotEmpty()) {
+                ProgressChip(
+                    done = progressSteps.count { it.isDone },
+                    total = progressSteps.size,
+                )
+            }
+        },
         content = {
             Column(
                 verticalArrangement = Arrangement.spacedBy(12.dp),
                 modifier = Modifier.fillMaxWidth()
             ) {
-                if (isAnswered) {
-                    AnsweredPlanContent(tool = tool)
+                if (resultView != null) {
+                    PlanResultContent(view = resultView)
                 } else {
+                    PlanProgressHeader(steps = editorSteps)
+
                     PlanEditorContent(
                         goal = goal,
                         onGoalChange = { goal = it },
                         message = initialRequest.message,
-                        steps = steps.values.filter { it.id in stepOrder }.sortedBy { stepOrder.indexOf(it.id) },
+                        steps = editorSteps,
                         onStepTitleChange = { id, title ->
                             steps[id]?.let { steps[id] = it.copy(title = title) }
                         },
                         onStepStatusChange = { id, status ->
-                            steps[id]?.let { steps[id] = it.copy(status = status) }
+                            steps[id]?.let { steps[id] = it.withStatus(status) }
                         },
                         questions = questions,
                         answers = answers,
@@ -155,9 +203,7 @@ fun ChainOfThoughtScope.InteractivePlanToolStep(
                             val userAnswer = InteractivePlanUserAnswer(
                                 operation = InteractivePlanOperation.COMPLETE,
                                 editedGoal = goal,
-                                updatedSteps = steps.values.map {
-                                    UserPlanStep(it.id, it.title, it.detail, it.status, it.needsConfirmation)
-                                },
+                                updatedSteps = steps.values.map { it.toUserStep() },
                                 stepOrder = stepOrder,
                             )
                             onToolAnswer?.invoke(tool.toolCallId, encodePlanUserAnswer(userAnswer))
@@ -173,41 +219,222 @@ fun ChainOfThoughtScope.InteractivePlanToolStep(
     )
 }
 
-@Composable
-private fun AnsweredPlanContent(tool: UIMessagePart.Tool) {
-    val snapshot = tool.output
-        .filterIsInstance<UIMessagePart.Text>()
-        .firstOrNull()
-        ?.text
-        ?.let { decodePlanSnapshot(it) }
+private fun PlanStep.toUserStep(): UserPlanStep = UserPlanStep(
+    id = id,
+    title = title,
+    detail = detail,
+    status = status,
+    needsConfirmation = needsConfirmation,
+    startedAt = startedAt,
+    finishedAt = finishedAt,
+    blockedReason = blockedReason,
+)
 
-    if (snapshot != null) {
-        if (snapshot.goal.isNotBlank()) {
+/** 紧凑的进度角标，显示在标题行右侧。 */
+@Composable
+private fun ProgressChip(done: Int, total: Int) {
+    Surface(
+        color = if (done >= total && total > 0) {
+            MaterialTheme.colorScheme.primaryContainer
+        } else {
+            MaterialTheme.colorScheme.secondaryContainer
+        },
+        shape = MaterialTheme.shapes.small,
+    ) {
+        Text(
+            text = stringResource(R.string.chat_message_tool_interactive_plan_progress, done, total),
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSecondaryContainer,
+            modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
+        )
+    }
+}
+
+/** 进度条 + 完成率（进行中的步骤按半程计入，进度更跟手）。 */
+@Composable
+private fun PlanProgressHeader(steps: List<PlanStep>, modifier: Modifier = Modifier) {
+    if (steps.isEmpty()) return
+    val done = steps.count { it.isDone }
+    val total = steps.size
+    val progress = steps.weightedProgress()
+
+    Column(
+        verticalArrangement = Arrangement.spacedBy(4.dp),
+        modifier = modifier.fillMaxWidth(),
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            LinearProgressIndicator(
+                progress = { progress },
+                modifier = Modifier.weight(1f),
+            )
             Text(
-                text = snapshot.goal,
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurface,
+                text = stringResource(R.string.chat_message_tool_interactive_plan_progress, done, total),
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
-        if (snapshot.steps.isNotEmpty()) {
-            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                snapshot.steps.forEach { step ->
-                    Text(
-                        text = "${statusLabel(step.status)} · ${step.title}",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-            }
-        }
-        if (snapshot.message.isNotBlank()) {
+        val blocked = steps.count { it.status == PlanStepStatus.BLOCKED }
+        if (blocked > 0) {
             Text(
-                text = snapshot.message,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.primary,
+                text = stringResource(R.string.chat_message_tool_interactive_plan_blocked_count, blocked),
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.error,
             )
         }
     }
+}
+
+/**
+ * 已回答后的只读结果视图：完整展示目标、进度、步骤（含耗时/阻塞原因）与用户回答。
+ */
+@Composable
+private fun PlanResultContent(view: InteractivePlanView) {
+    if (view.goal.isNotBlank()) {
+        Text(
+            text = view.goal,
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurface,
+        )
+    }
+
+    if (view.message.isNotBlank()) {
+        Text(
+            text = view.message,
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.primary,
+        )
+    }
+
+    if (view.steps.isNotEmpty()) {
+        PlanProgressHeader(steps = view.steps)
+
+        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            Text(
+                text = stringResource(R.string.chat_message_tool_interactive_plan_steps),
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.secondary,
+            )
+            view.steps.forEach { step ->
+                PlanStepResultRow(step = step, allSteps = view.steps)
+            }
+        }
+    }
+
+    val visibleQuestions = view.questions.filter { it.isVisible(view.answers) }
+    if (visibleQuestions.isNotEmpty()) {
+        HorizontalDivider()
+        Text(
+            text = stringResource(R.string.chat_message_tool_interactive_plan_answers),
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.secondary,
+        )
+        visibleQuestions.forEach { q ->
+            val answer = view.answers[q.id].orEmpty()
+            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                Text(
+                    text = q.question,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurface,
+                )
+                Text(
+                    text = answer.ifBlank {
+                        stringResource(R.string.chat_message_tool_interactive_plan_no_answer)
+                    },
+                    style = MaterialTheme.typography.bodySmall,
+                    color = if (answer.isBlank()) {
+                        MaterialTheme.colorScheme.onSurfaceVariant
+                    } else {
+                        MaterialTheme.colorScheme.primary
+                    },
+                )
+            }
+        }
+    }
+}
+
+/** 单条步骤的只读结果行。 */
+@Composable
+private fun PlanStepResultRow(step: PlanStep, allSteps: List<PlanStep>) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        StatusDot(status = step.status)
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = step.title,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurface,
+            )
+            val meta = buildMetaText(step, allSteps)
+            if (meta != null) {
+                Text(
+                    text = meta,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        }
+        Text(
+            text = statusLabel(step.status),
+            style = MaterialTheme.typography.labelSmall,
+            color = statusColor(step.status),
+        )
+    }
+}
+
+@Composable
+private fun buildMetaText(step: PlanStep, allSteps: List<PlanStep>): String? {
+    val parts = buildList {
+        val elapsed = step.elapsedMillis()
+        if (elapsed != null && elapsed > 0) {
+            add(stringResource(R.string.chat_message_tool_interactive_plan_elapsed, formatDuration(elapsed)))
+        }
+        if (step.status == PlanStepStatus.BLOCKED && step.blockedReason.isNotBlank()) {
+            add(step.blockedReason)
+        }
+        val unmet = step.unmetDependencies(allSteps)
+        if (unmet.isNotEmpty() && step.status != PlanStepStatus.COMPLETED) {
+            add(
+                stringResource(
+                    R.string.chat_message_tool_interactive_plan_waiting_on,
+                    unmet.joinToString(", ") { it.title },
+                )
+            )
+        }
+    }
+    return parts.takeIf { it.isNotEmpty() }?.joinToString(" · ")
+}
+
+private fun formatDuration(millis: Long): String {
+    val totalSeconds = (millis / 1000).coerceAtLeast(0)
+    val minutes = totalSeconds / 60
+    val seconds = totalSeconds % 60
+    return if (minutes > 0) "${minutes}m ${seconds}s" else "${seconds}s"
+}
+
+@Composable
+private fun StatusDot(status: PlanStepStatus) {
+    Box(
+        modifier = Modifier
+            .size(8.dp)
+            .clip(CircleShape)
+            .background(statusColor(status)),
+    )
+}
+
+@Composable
+private fun statusColor(status: PlanStepStatus) = when (status) {
+    PlanStepStatus.PENDING -> MaterialTheme.colorScheme.onSurfaceVariant
+    PlanStepStatus.IN_PROGRESS -> MaterialTheme.colorScheme.primary
+    PlanStepStatus.COMPLETED -> MaterialTheme.colorScheme.tertiary
+    PlanStepStatus.SKIPPED -> MaterialTheme.colorScheme.onSurfaceVariant
+    PlanStepStatus.BLOCKED -> MaterialTheme.colorScheme.error
 }
 
 @OptIn(ExperimentalLayoutApi::class)
@@ -259,14 +486,16 @@ private fun PlanEditorContent(
         }
     }
 
-    if (questions.isNotEmpty()) {
+    // 条件提问：只渲染当前条件下应该出现的问题。
+    val visibleQuestions = questions.filter { it.isVisible(answers, multiAnswers) }
+    if (visibleQuestions.isNotEmpty()) {
         HorizontalDivider()
         Text(
             text = stringResource(R.string.chat_message_tool_interactive_plan_questions),
             style = MaterialTheme.typography.labelMedium,
             color = MaterialTheme.colorScheme.secondary,
         )
-        questions.forEach { q ->
+        visibleQuestions.forEach { q ->
             Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 Text(
                     text = q.question,
@@ -279,7 +508,8 @@ private fun PlanEditorContent(
                         verticalArrangement = Arrangement.spacedBy(4.dp),
                     ) {
                         q.options.forEach { option ->
-                            val selected = if (q.selectionType == PlanSelectionType.MULTI) {
+                            val isMulti = q.selectionType == PlanSelectionType.MULTI
+                            val selected = if (isMulti) {
                                 option in (multiAnswers[q.id] ?: emptySet())
                             } else {
                                 answers[q.id] == option
@@ -287,9 +517,14 @@ private fun PlanEditorContent(
                             FilterChip(
                                 selected = selected,
                                 onClick = {
-                                    if (q.selectionType == PlanSelectionType.MULTI) {
+                                    if (isMulti) {
                                         val current = multiAnswers[q.id] ?: emptySet()
-                                        multiAnswers[q.id] = if (option in current) current - option else current + option
+                                        multiAnswers[q.id] = toggleOption(
+                                            current = current,
+                                            option = option,
+                                            allOptions = q.options,
+                                            exclusiveOptions = q.exclusiveOptions,
+                                        )
                                     } else {
                                         answers[q.id] = option
                                     }
@@ -313,26 +548,45 @@ private fun PlanEditorContent(
     }
 }
 
+/**
+ * 多选场景下的互斥选择：从源头阻止互相矛盾的答案组合。
+ * - 选中互斥项 -> 清空其余所有选项；
+ * - 选中普通项 -> 移除所有互斥项；
+ * - 再次点击已选项 -> 取消。
+ */
+private fun toggleOption(
+    current: Set<String>,
+    option: String,
+    allOptions: List<String>,
+    exclusiveOptions: List<String>,
+): Set<String> {
+    if (option in current) return current - option
+    val isExclusive = option in exclusiveOptions
+    val remaining = if (isExclusive) {
+        emptySet()
+    } else {
+        current - exclusiveOptions.toSet()
+    }
+    return remaining + option
+}
+
 @Composable
 private fun StepEditor(
     step: PlanStep,
     onTitleChange: (String) -> Unit,
     onStatusChange: (PlanStepStatus) -> Unit,
 ) {
-    Row(
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-    ) {
-        StatusToggle(status = step.status, onChange = onStatusChange)
+    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
         OutlinedTextField(
             value = step.title,
             onValueChange = onTitleChange,
-            modifier = Modifier.weight(1f),
+            modifier = Modifier.fillMaxWidth(),
             textStyle = MaterialTheme.typography.bodySmall,
             singleLine = false,
             minLines = 1,
             maxLines = 2,
         )
+        StatusToggle(status = step.status, onChange = onStatusChange)
     }
 }
 
@@ -396,23 +650,23 @@ private fun buildUserAnswer(
     multiAnswers: androidx.compose.runtime.snapshots.SnapshotStateMap<String, Set<String>>,
 ): InteractivePlanUserAnswer {
     val answerMap = buildMap {
-        questions.forEach { q ->
-            val freeText = answers[q.id]?.takeIf { it.isNotBlank() }
-            val selected = multiAnswers[q.id].orEmpty()
-            val combined = when (q.selectionType) {
-                PlanSelectionType.MULTI -> (selected.toList() + listOfNotNull(freeText)).joinToString(", ")
-                else -> freeText ?: answers[q.id].orEmpty()
+        questions
+            .filter { it.isVisible(answers, multiAnswers) }
+            .forEach { q ->
+                val freeText = answers[q.id]?.takeIf { it.isNotBlank() }
+                val selected = multiAnswers[q.id].orEmpty()
+                val combined = when (q.selectionType) {
+                    PlanSelectionType.MULTI -> (selected.toList() + listOfNotNull(freeText)).joinToString(", ")
+                    else -> freeText ?: answers[q.id].orEmpty()
+                }
+                put(q.id, combined)
             }
-            put(q.id, combined)
-        }
     }
     return InteractivePlanUserAnswer(
         operation = operation,
         editedGoal = goal,
         answers = answerMap,
-        updatedSteps = steps.map {
-            UserPlanStep(it.id, it.title, it.detail, it.status, it.needsConfirmation)
-        },
+        updatedSteps = steps.map { it.toUserStep() },
         stepOrder = stepOrder,
     )
 }

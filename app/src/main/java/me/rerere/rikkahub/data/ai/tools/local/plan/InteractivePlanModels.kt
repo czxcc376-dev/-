@@ -28,14 +28,50 @@ data class PlanStep(
     val status: PlanStepStatus = PlanStepStatus.PENDING,
     val dependsOn: List<String> = emptyList(),
     val needsConfirmation: Boolean = false,
+    /** 步骤进入 in_progress 的时间戳（epoch 毫秒），由客户端记录。 */
+    val startedAt: Long? = null,
+    /** 步骤完成/跳过的时间戳（epoch 毫秒），由客户端记录。 */
+    val finishedAt: Long? = null,
+    /** 步骤被阻塞的原因（status == blocked 时展示）。 */
+    val blockedReason: String = "",
 ) {
+    /** 是否已经收尾（完成或跳过）。 */
+    val isDone: Boolean get() = status == PlanStepStatus.COMPLETED || status == PlanStepStatus.SKIPPED
+
+    /** 该步骤实际耗时（毫秒），无开始时间时返回 null。 */
+    fun elapsedMillis(now: Long = System.currentTimeMillis()): Long? {
+        val start = startedAt ?: return null
+        return (finishedAt ?: now) - start
+    }
+
     fun updatedFromUser(userStep: UserPlanStep): PlanStep {
         return copy(
             title = userStep.title.ifBlank { title },
             detail = userStep.detail.ifBlank { detail },
             status = userStep.status,
             needsConfirmation = userStep.needsConfirmation ?: needsConfirmation,
+            startedAt = userStep.startedAt ?: startedAt,
+            finishedAt = userStep.finishedAt ?: finishedAt,
+            blockedReason = userStep.blockedReason ?: blockedReason,
         )
+    }
+
+    /**
+     * 状态流转时自动维护时间戳。
+     * - 进入 in_progress：补 startedAt，清空 finishedAt（允许重启）
+     * - 进入 completed / skipped：补 finishedAt
+     * - 回到 pending / blocked：保留既有时间，仅当从未开始时留空
+     */
+    fun withStatus(newStatus: PlanStepStatus, now: Long = System.currentTimeMillis()): PlanStep {
+        val newStarted = when {
+            newStatus == PlanStepStatus.IN_PROGRESS -> startedAt ?: now
+            else -> startedAt
+        }
+        val newFinished = when (newStatus) {
+            PlanStepStatus.COMPLETED, PlanStepStatus.SKIPPED -> finishedAt ?: now
+            else -> null
+        }
+        return copy(status = newStatus, startedAt = newStarted, finishedAt = newFinished)
     }
 }
 
@@ -64,6 +100,53 @@ data class PlanQuestion(
     val options: List<String> = emptyList(),
     val selectionType: PlanSelectionType = PlanSelectionType.TEXT,
     val required: Boolean = true,
+    /**
+     * 条件提问：仅当所有条件都满足时，这个问题才会展示。
+     * 为空表示无条件展示。
+     */
+    val dependsOn: List<QuestionCondition> = emptyList(),
+    /**
+     * 互斥选项：这些选项彼此互斥，也与其余所有选项互斥。
+     * 例如 ["都不需要"] 表示选中它后不能再选别的。
+     */
+    val exclusiveOptions: List<String> = emptyList(),
+) {
+    /**
+     * 根据当前已答内容判断该问题是否应该展示。
+     */
+    fun isVisible(
+        answers: Map<String, String>,
+        multiAnswers: Map<String, Set<String>> = emptyMap(),
+    ): Boolean {
+        if (dependsOn.isEmpty()) return true
+        return dependsOn.all { condition ->
+            val selected = buildSet {
+                multiAnswers[condition.questionId]?.let { addAll(it) }
+                // 用户答案可能是多选合并成的 "a, b" 字符串，这里拆开逐项匹配。
+                answers[condition.questionId]
+                    ?.takeIf { it.isNotBlank() }
+                    ?.split(",", "|", "、", ";")
+                    ?.map { it.trim() }
+                    ?.filter { it.isNotEmpty() }
+                    ?.let { addAll(it) }
+            }
+            if (condition.anyOf.isEmpty()) {
+                selected.isNotEmpty()
+            } else {
+                condition.anyOf.any { it in selected }
+            }
+        }
+    }
+}
+
+/**
+ * 一个问题的展示条件：当 [questionId] 的答案命中 [anyOf] 中任意一项时满足。
+ * [anyOf] 为空表示只要该问题有任意答案即可。
+ */
+@Serializable
+data class QuestionCondition(
+    val questionId: String,
+    val anyOf: List<String> = emptyList(),
 )
 
 @Serializable
@@ -122,6 +205,9 @@ data class UserPlanStep(
     val detail: String = "",
     val status: PlanStepStatus = PlanStepStatus.PENDING,
     val needsConfirmation: Boolean? = null,
+    val startedAt: Long? = null,
+    val finishedAt: Long? = null,
+    val blockedReason: String? = null,
 )
 
 /**
@@ -200,3 +286,113 @@ fun decodePlanSnapshot(text: String): InteractivePlanSnapshot? =
     runCatching {
         planJson.decodeFromString<InteractivePlanSnapshot>(text)
     }.getOrNull()
+
+/**
+ * 计划卡片当前应该渲染的最终视图。
+ *
+ * 由「模型原始请求」+「用户操作答案」合并而来，因此即使工具没有真正的执行输出，
+ * 也能在用户确认/调整之后完整回看整份计划。
+ */
+data class InteractivePlanView(
+    val goal: String,
+    val steps: List<PlanStep>,
+    val questions: List<PlanQuestion>,
+    val answers: Map<String, String>,
+    val message: String,
+    val operation: InteractivePlanOperation,
+) {
+    val totalCount: Int get() = steps.size
+    val doneCount: Int get() = steps.count { it.isDone }
+    val blockedCount: Int get() = steps.count { it.status == PlanStepStatus.BLOCKED }
+
+    /** 完成率 0f..1f，无步骤时返回 0。 */
+    val progress: Float
+        get() = if (totalCount == 0) 0f else doneCount.toFloat() / totalCount.toFloat()
+
+    /** 进行中的步骤数。 */
+    val inProgressCount: Int get() = steps.count { it.status == PlanStepStatus.IN_PROGRESS }
+}
+
+/**
+ * 加权进度：完成/跳过记 1，进行中记 0.5。
+ * 这样进度条在步骤真正推进时就会动起来，而不是只有完成才跳变。
+ */
+fun List<PlanStep>.weightedProgress(): Float {
+    if (isEmpty()) return 0f
+    val score = sumOf {
+        when (it.status) {
+            PlanStepStatus.COMPLETED, PlanStepStatus.SKIPPED -> 1.0
+            PlanStepStatus.IN_PROGRESS -> 0.5
+            else -> 0.0
+        }
+    }
+    return (score / size).toFloat().coerceIn(0f, 1f)
+}
+
+/** 找出某步骤尚未满足的依赖步骤（依赖未完成/未跳过）。 */
+fun PlanStep.unmetDependencies(allSteps: List<PlanStep>): List<PlanStep> =
+    dependsOn
+        .mapNotNull { id -> allSteps.firstOrNull { it.id == id } }
+        .filter { !it.isDone }
+
+/**
+ * 把模型请求与用户答案合并成最终视图。
+ *
+ * - 步骤按 [InteractivePlanRequest.stepOrder] / [InteractivePlanUserAnswer.stepOrder] 排序；
+ * - 用户在卡片里编辑过的步骤（标题/详情/状态/时间戳）覆盖模型版本；
+ * - 用户答案里的步骤若模型没给过，也会被补进来（用户可新增体验更平滑）。
+ */
+fun buildPlanView(
+    request: InteractivePlanRequest,
+    answer: InteractivePlanUserAnswer?,
+): InteractivePlanView {
+    val order = (answer?.stepOrder?.takeIf { it.isNotEmpty() }
+        ?: request.stepOrder.takeIf { it.isNotEmpty() }
+        ?: request.steps.map { it.id })
+
+    val base = LinkedHashMap<String, PlanStep>()
+    request.steps.forEach { base[it.id] = it }
+
+    answer?.updatedSteps?.forEach { userStep ->
+        val existing = base[userStep.id]
+        base[userStep.id] = existing?.updatedFromUser(userStep) ?: PlanStep(
+            id = userStep.id,
+            title = userStep.title,
+            detail = userStep.detail,
+            status = userStep.status,
+            needsConfirmation = userStep.needsConfirmation ?: false,
+            startedAt = userStep.startedAt,
+            finishedAt = userStep.finishedAt,
+            blockedReason = userStep.blockedReason.orEmpty(),
+        )
+    }
+
+    val orderedIds = buildList {
+        addAll(order.filter { it in base })
+        addAll(base.keys.filter { it !in order })
+    }
+
+    val answers = buildMap {
+        putAll(request.answers)
+        answer?.answers?.forEach { (k, v) -> if (v.isNotBlank()) put(k, v) }
+    }
+
+    return InteractivePlanView(
+        goal = answer?.editedGoal?.takeIf { it.isNotBlank() } ?: request.goal,
+        steps = orderedIds.mapNotNull { base[it] },
+        questions = request.questions,
+        answers = answers,
+        message = answer?.message?.takeIf { it.isNotBlank() } ?: request.message,
+        operation = answer?.operation ?: request.operation,
+    )
+}
+
+/** 把工具执行输出的快照转换为只读视图（用于 complete / cancel 等无需用户确认的收尾）。 */
+fun InteractivePlanSnapshot.toView(): InteractivePlanView = InteractivePlanView(
+    goal = goal,
+    steps = steps,
+    questions = questions,
+    answers = answers,
+    message = message,
+    operation = lastUserOperation,
+)

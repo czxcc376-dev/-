@@ -1419,4 +1419,10 @@ mDNS 地址：使用 .local 主机名，同一网络中的其他设备可通过�
   <string name="chat_message_tool_interactive_plan_status_completed">已完成</string>
   <string name="chat_message_tool_interactive_plan_status_skipped">已跳过</string>
   <string name="chat_message_tool_interactive_plan_status_blocked">已阻塞</string>
+  <string name="chat_message_tool_interactive_plan_progress">已完成 %1$d / %2$d</string>
+  <string name="chat_message_tool_interactive_plan_blocked_count">%1$d 个步骤被阻塞</string>
+  <string name="chat_message_tool_interactive_plan_elapsed">耗时 %1$s</string>
+  <string name="chat_message_tool_interactive_plan_answers">你的回答</string>
+  <string name="chat_message_tool_interactive_plan_no_answer">未回答</string>
+  <string name="chat_message_tool_interactive_plan_waiting_on">等待前置：%1$s</string>
 </resources>

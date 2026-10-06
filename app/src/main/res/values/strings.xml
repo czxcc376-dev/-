@@ -1419,4 +1419,10 @@
   <string name="chat_message_tool_interactive_plan_status_completed">Completed</string>
   <string name="chat_message_tool_interactive_plan_status_skipped">Skipped</string>
   <string name="chat_message_tool_interactive_plan_status_blocked">Blocked</string>
+  <string name="chat_message_tool_interactive_plan_progress">%1$d / %2$d done</string>
+  <string name="chat_message_tool_interactive_plan_blocked_count">%1$d steps blocked</string>
+  <string name="chat_message_tool_interactive_plan_elapsed">Elapsed %1$s</string>
+  <string name="chat_message_tool_interactive_plan_answers">Your answers</string>
+  <string name="chat_message_tool_interactive_plan_no_answer">No answer</string>
+  <string name="chat_message_tool_interactive_plan_waiting_on">Waiting on: %1$s</string>
 </resources>

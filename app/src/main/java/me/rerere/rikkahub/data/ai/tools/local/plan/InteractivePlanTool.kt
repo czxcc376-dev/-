@@ -17,8 +17,8 @@ import me.rerere.ai.ui.UIMessagePart
  * - 用户可以在聊天卡片里直接确认、修改步骤、回答问题。
  *
  * 执行契约：
- * - [needsApproval] 恒为 true，从而进入现有 HITL 流程；
- * - [execute] 不会被 Answered 分支调用，这里保持为兜底实现即可。
+ * - [needsApproval] 对 create_or_update/confirm 为 true（进入 HITL），对 complete/cancel 为 false（直接收尾）；
+ * - [execute] 在 complete/cancel 或用户回答后的兜底路径中会把当前计划快照写入输出。
  */
 fun buildInteractivePlanTool(): Tool = Tool(
     name = "interactive_plan",
@@ -82,6 +82,24 @@ fun buildInteractivePlanTool(): Tool = Tool(
                             put("needsConfirmation", buildJsonObject {
                                 put("type", "boolean")
                             })
+                            put("startedAt", buildJsonObject {
+                                put("type", "integer")
+                                put(
+                                    "description",
+                                    "Epoch milliseconds when the step started. Set by the client; only echo it back if you already know it."
+                                )
+                            })
+                            put("finishedAt", buildJsonObject {
+                                put("type", "integer")
+                                put(
+                                    "description",
+                                    "Epoch milliseconds when the step finished. Set by the client; only echo it back if you already know it."
+                                )
+                            })
+                            put("blockedReason", buildJsonObject {
+                                put("type", "string")
+                                put("description", "Why the step is blocked (only when status is blocked).")
+                            })
                         })
                         put("required", buildJsonArray {
                             add("id")
@@ -110,6 +128,31 @@ fun buildInteractivePlanTool(): Tool = Tool(
                                 })
                             })
                             put("required", buildJsonObject { put("type", "boolean") })
+                            put("dependsOn", buildJsonObject {
+                                put("type", "array")
+                                put(
+                                    "description",
+                                    "Show this question only when the referenced answers match. " +
+                                        "Each item: {questionId, anyOf: [answers]}. Empty anyOf means " +
+                                        "'any answer at all'."
+                                )
+                                put("items", buildJsonObject {
+                                    put("type", "object")
+                                    put("properties", buildJsonObject {
+                                        put("questionId", buildJsonObject { put("type", "string") })
+                                        put("anyOf", buildJsonObject {
+                                            put("type", "array")
+                                            put("items", buildJsonObject { put("type", "string") })
+                                        })
+                                    })
+                                    put("required", buildJsonArray { add("questionId") })
+                                })
+                            })
+                            put("exclusiveOptions", buildJsonObject {
+                                put("type", "array")
+                                put("description", "Options that are mutually exclusive with every other option (e.g. \"None of the above\").")
+                                put("items", buildJsonObject { put("type", "string") })
+                            })
                         })
                         put("required", buildJsonArray {
                             add("id")
@@ -129,9 +172,17 @@ fun buildInteractivePlanTool(): Tool = Tool(
             required = listOf("operation", "goal", "steps")
         )
     },
-    needsApproval = { true },
+    // create_or_update / confirm 需要用户交互（进入 HITL 流程）；
+    // complete / cancel 是收尾动作，直接执行并把最终快照作为输出，无需再等用户点击。
+    needsApproval = { element ->
+        parsePlanRequest(element).operation !in setOf(
+            InteractivePlanOperation.COMPLETE,
+            InteractivePlanOperation.CANCEL,
+        )
+    },
     execute = {
-        // HITL 流程中不会走到这里。兜底返回一个空快照，保证极端情况下不崩溃。
+        // complete / cancel 会走到这里；create_or_update / confirm 在用户回答后也可能走兜底路径。
+        // 统一把当前计划编码成快照作为工具输出，保证卡片始终能回看完整计划。
         val args = parsePlanRequest(it)
         listOf(
             UIMessagePart.Text(
@@ -172,6 +223,17 @@ How to use it:
 - Use `confirm` when you want explicit go-ahead before a destructive, expensive, or irreversible action.
 - Use `complete` when the whole goal is achieved. Use `cancel` only if the user abandons the task.
 - Never fabricate user answers. If a required answer is missing, ask again.
+
+Questions:
+- Only ask questions you genuinely need answered. Prefer `single`/`multi` with concrete options over free text.
+- Use `dependsOn` to make a question conditional: it only shows when a previous question was answered a certain way. This avoids asking irrelevant follow-ups.
+- Use `exclusiveOptions` for options that must not be combined with others (e.g. "None of the above", "Not sure"). The UI then prevents contradictory answers.
+
+Steps & progress:
+- Give every step a stable id and a clear title. Add `detail` for anything non-obvious.
+- Use `dependsOn` on a step to declare prerequisites. The UI shows dependency state and progress.
+- Keep the plan honest: exactly one step `in_progress` at a time, and mark steps `completed` as you truly finish them so the progress bar reflects reality.
+- Set `blockedReason` when a step is blocked so the user can help unblock it.
 
 Keep plan updates concise; do not call the tool after every tiny action, only at meaningful checkpoints.
 
