@@ -1404,4 +1404,19 @@ mDNS 地址：使用 .local 主机名，同一网络中的其他设备可通过�
   <string name="error_fast_model_not_found">未找到快速模型。请在设置中选择一个。</string>
   <string name="error_fast_model_provider_not_found">未找到快速模型的提供商</string>
   <string name="assistant_page_clone_with_memories">同时复制记忆</string>
+  <string name="assistant_page_local_tools_interactive_plan_desc">让 AI 创建并维护带确认和提问的交互式任务计划</string>
+  <string name="assistant_page_local_tools_interactive_plan_title">交互式计划</string>
+  <string name="chat_message_tool_interactive_plan_title">交互式计划</string>
+  <string name="chat_message_tool_interactive_plan_goal">目标</string>
+  <string name="chat_message_tool_interactive_plan_steps">步骤</string>
+  <string name="chat_message_tool_interactive_plan_questions">问题</string>
+  <string name="chat_message_tool_interactive_plan_confirm_and_start">确认并开始</string>
+  <string name="chat_message_tool_interactive_plan_adjust">调整</string>
+  <string name="chat_message_tool_interactive_plan_complete">完成</string>
+  <string name="chat_message_tool_interactive_plan_cancel">取消</string>
+  <string name="chat_message_tool_interactive_plan_status_pending">待处理</string>
+  <string name="chat_message_tool_interactive_plan_status_in_progress">进行中</string>
+  <string name="chat_message_tool_interactive_plan_status_completed">已完成</string>
+  <string name="chat_message_tool_interactive_plan_status_skipped">已跳过</string>
+  <string name="chat_message_tool_interactive_plan_status_blocked">已阻塞</string>
 </resources>

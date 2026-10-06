@@ -1401,4 +1401,19 @@
   <string name="error_fast_model_not_found">找不到快速模型。請在設定中選擇一個。</string>
   <string name="error_fast_model_provider_not_found">找不到快速模型的供應商</string>
   <string name="assistant_page_clone_with_memories">同時複製記憶</string>
+  <string name="assistant_page_local_tools_interactive_plan_desc">讓 AI 建立並維護帶確認和提問的互動式任務計畫</string>
+  <string name="assistant_page_local_tools_interactive_plan_title">互動式計畫</string>
+  <string name="chat_message_tool_interactive_plan_title">互動式計畫</string>
+  <string name="chat_message_tool_interactive_plan_goal">目標</string>
+  <string name="chat_message_tool_interactive_plan_steps">步驟</string>
+  <string name="chat_message_tool_interactive_plan_questions">問題</string>
+  <string name="chat_message_tool_interactive_plan_confirm_and_start">確認並開始</string>
+  <string name="chat_message_tool_interactive_plan_adjust">調整</string>
+  <string name="chat_message_tool_interactive_plan_complete">完成</string>
+  <string name="chat_message_tool_interactive_plan_cancel">取消</string>
+  <string name="chat_message_tool_interactive_plan_status_pending">待處理</string>
+  <string name="chat_message_tool_interactive_plan_status_in_progress">進行中</string>
+  <string name="chat_message_tool_interactive_plan_status_completed">已完成</string>
+  <string name="chat_message_tool_interactive_plan_status_skipped">已跳過</string>
+  <string name="chat_message_tool_interactive_plan_status_blocked">已阻擋</string>
 </resources>
