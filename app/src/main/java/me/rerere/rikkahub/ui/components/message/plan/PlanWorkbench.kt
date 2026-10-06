@@ -292,12 +292,17 @@ private fun PlanDependencyGraph(view: InteractivePlanView) {
     val canvasWidth = leftPad * 2 + 3 * levelGap
     val canvasHeight = topPad * 2 + steps.size * rowHeight
 
+    // 提前在 Composable 作用域取值，避免 lambda 内调用 Composable API。
+    val cDone = MaterialTheme.colorScheme.tertiary
+    val cActive = MaterialTheme.colorScheme.primary
+    val cBlocked = MaterialTheme.colorScheme.error
+    val cPending = MaterialTheme.colorScheme.onSurfaceVariant
     val statusColor: (PlanStepStatus) -> Color = { status ->
         when (status) {
-            PlanStepStatus.COMPLETED, PlanStepStatus.SKIPPED -> MaterialTheme.colorScheme.tertiary
-            PlanStepStatus.IN_PROGRESS -> MaterialTheme.colorScheme.primary
-            PlanStepStatus.BLOCKED -> MaterialTheme.colorScheme.error
-            PlanStepStatus.PENDING -> MaterialTheme.colorScheme.onSurfaceVariant
+            PlanStepStatus.COMPLETED, PlanStepStatus.SKIPPED -> cDone
+            PlanStepStatus.IN_PROGRESS -> cActive
+            PlanStepStatus.BLOCKED -> cBlocked
+            PlanStepStatus.PENDING -> cPending
         }
     }
     val edgeColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.35f)
