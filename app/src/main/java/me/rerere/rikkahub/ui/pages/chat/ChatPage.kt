@@ -94,6 +94,7 @@ import org.koin.core.parameter.parametersOf
 import kotlin.time.Duration.Companion.milliseconds
 import dev.chrisbanes.haze.HazeInput
 import dev.chrisbanes.haze.blur.HazeBlurStyle
+import dev.chrisbanes.haze.blur.material3.Material3
 import dev.chrisbanes.haze.blur.hazeBlur
 import kotlin.uuid.Uuid
 
