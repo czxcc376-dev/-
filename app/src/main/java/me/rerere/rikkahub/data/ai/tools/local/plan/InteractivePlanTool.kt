@@ -108,6 +108,36 @@ fun buildInteractivePlanTool(): Tool = Tool(
                                 put("type", "string")
                                 put("description", "Why the step is blocked (only when status is blocked).")
                             })
+                            put("parentId", buildJsonObject {
+                                put("type", "string")
+                                put(
+                                    "description",
+                                    "Parent step id to nest this step as a sub-step. Use for decomposing a big step into concrete sub-tasks."
+                                )
+                            })
+                            put("owner", buildJsonObject {
+                                put("type", "string")
+                                put("description", "Who is responsible for this step, e.g. the user, a person, or a component.")
+                            })
+                            put("labels", buildJsonObject {
+                                put("type", "array")
+                                put(
+                                    "description",
+                                    "Free-form labels for grouping, e.g. [\"frontend\", \"testing\", \"reverse\"]."
+                                )
+                                put("items", buildJsonObject { put("type", "string") })
+                            })
+                            put("modelHint", buildJsonObject {
+                                put("type", "string")
+                                put(
+                                    "description",
+                                    "Optional model name best suited to execute this step (multi-model collaboration)."
+                                )
+                            })
+                            put("estimatedMinutes", buildJsonObject {
+                                put("type", "integer")
+                                put("description", "Estimated minutes for this step, used for overdue reminders.")
+                            })
                         })
                         put("required", buildJsonArray {
                             add("id")
@@ -243,7 +273,10 @@ private fun buildLivePlanSection(messages: List<UIMessage>): String? {
         appendLine("Goal: ${view.goal}")
         appendLine("Progress: $done/${view.steps.size}")
         view.steps.forEach { step ->
-            append("- [${step.status.name.lowercase()}] ${step.id}: ${step.title}")
+            val indent = if (step.parentId.isNullOrBlank()) "" else "  "
+            append("- $indent[${step.status.name.lowercase()}] ${step.id}: ${step.title}")
+            if (step.owner.isNotBlank()) append(" (owner: ${step.owner})")
+            if (step.labels.isNotEmpty()) append(" #${step.labels.joinToString(" #")}")
             if (step.detail.isNotBlank()) append(" — ${step.detail}")
             appendLine()
         }
@@ -287,6 +320,17 @@ Steps & progress:
 - Use `dependsOn` on a step to declare prerequisites. The UI shows dependency state and progress.
 - Keep the plan honest: exactly one step `in_progress` at a time, and mark steps `completed` as you truly finish them so the progress bar reflects reality.
 - Set `blockedReason` when a step is blocked so the user can help unblock it.
+
+Structure & collaboration:
+- Decompose big steps with `parentId` instead of making a flat, overwhelming list. Keep nesting to 2 levels.
+- Use `labels` to group work (e.g. frontend/backend/testing/reverse) and `owner` when responsibility matters.
+- Use `estimatedMinutes` so the UI can warn about overdue steps.
+- For multi-model workflows, set `modelHint` on steps that a different model handles better (e.g. a fast model for boilerplate, a strong model for hard reasoning).
+
+Reverse engineering playbook (use when the task involves APKs, binaries, protocols, or APIs):
+- Typical plan: recon (manifest/permissions/entry points) -> locate logic (strings, JNI, crypto) -> trace data flow (network/DB) -> reproduce (frida/hook, capture) -> document findings.
+- Prefer evidence-based steps: capture traffic, dump strings, decompile, then verify. Mark a step blocked with `blockedReason` when you lack a tool or credential.
+- Keep the user in the loop before anything destructive or network-facing.
 
 Keep plan updates concise; do not call the tool after every tiny action, only at meaningful checkpoints.
 

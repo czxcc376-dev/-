@@ -87,7 +87,7 @@ object OcrTransformer : InputMessageTransformer, KoinComponent {
         }
 
         val settings = get<SettingsStore>().settingsFlow.value
-        val model = settings.findModelById(settings.ocrModelId) ?: return "[Image]"
+        val model = settings.resolveModelOrAssistant(settings.ocrModelId) ?: return "[Image]"
         val providerSetting = model.findProvider(settings.providers) ?: return "[Image]"
         val provider = get<ProviderManager>().getProviderByType(providerSetting)
         val result = provider.generateText(

@@ -1436,4 +1436,8 @@ mDNS 地址：使用 .local 主机名，同一网络中的其他设备可通过�
   <string name="plan_hud_expand">展开计划</string>
   <string name="plan_hud_collapse">收起计划</string>
   <string name="chat_message_tool_interactive_plan_required_hint">请先回答上方标记为必答的问题，再开始执行。</string>
+  <string name="chat_message_tool_interactive_plan_overdue">已逾期</string>
+  <string name="setting_model_page_follow_assistant">跟随当前助手</string>
+  <string name="setting_model_page_follow_assistant_desc">使用当前助手所配置的模型</string>
+  <string name="setting_model_page_follow_assistant_value">跟随助手：%1$s</string>
 </resources>

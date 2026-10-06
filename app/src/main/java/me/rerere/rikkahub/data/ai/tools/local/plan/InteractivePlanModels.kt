@@ -34,9 +34,29 @@ data class PlanStep(
     val finishedAt: Long? = null,
     /** 步骤被阻塞的原因（status == blocked 时展示）。 */
     val blockedReason: String = "",
+    /** 父步骤 id；非空表示这是某个步骤的子步骤（子计划嵌套）。 */
+    val parentId: String? = null,
+    /** 负责人 / 承担者（自由文本，例如 "我"、"后端"、"ModelA"）。 */
+    val owner: String = "",
+    /** 标签（例如 "前端"、"测试"、"逆向"），用于分组与筛选。 */
+    val labels: List<String> = emptyList(),
+    /**
+     * 多模型协作：建议执行该步骤的模型名（可选）。
+     * 留空表示使用当前会话模型。
+     */
+    val modelHint: String = "",
+    /** 该步骤的预计耗时（分钟），用于逾期提醒。 */
+    val estimatedMinutes: Int = 0,
 ) {
     /** 是否已经收尾（完成或跳过）。 */
     val isDone: Boolean get() = status == PlanStepStatus.COMPLETED || status == PlanStepStatus.SKIPPED
+
+    /** 是否逾期：预计耗时已知、仍在进行中、且已超出预计。 */
+    fun isOverdue(now: Long = System.currentTimeMillis()): Boolean {
+        if (estimatedMinutes <= 0 || status != PlanStepStatus.IN_PROGRESS) return false
+        val elapsed = elapsedMillis(now) ?: return false
+        return elapsed > estimatedMinutes * 60_000L
+    }
 
     /** 该步骤实际耗时（毫秒），无开始时间时返回 null。 */
     fun elapsedMillis(now: Long = System.currentTimeMillis()): Long? {
@@ -53,6 +73,10 @@ data class PlanStep(
             startedAt = userStep.startedAt ?: startedAt,
             finishedAt = userStep.finishedAt ?: finishedAt,
             blockedReason = userStep.blockedReason ?: blockedReason,
+            parentId = userStep.parentId ?: parentId,
+            owner = userStep.owner ?: owner,
+            labels = userStep.labels ?: labels,
+            modelHint = userStep.modelHint ?: modelHint,
         )
     }
 
@@ -208,6 +232,10 @@ data class UserPlanStep(
     val startedAt: Long? = null,
     val finishedAt: Long? = null,
     val blockedReason: String? = null,
+    val parentId: String? = null,
+    val owner: String? = null,
+    val labels: List<String>? = null,
+    val modelHint: String? = null,
 )
 
 /**
@@ -334,6 +362,49 @@ fun PlanStep.unmetDependencies(allSteps: List<PlanStep>): List<PlanStep> =
     dependsOn
         .mapNotNull { id -> allSteps.firstOrNull { it.id == id } }
         .filter { !it.isDone }
+
+/** 顶层步骤（没有父步骤）。 */
+fun List<PlanStep>.rootSteps(): List<PlanStep> = filter { it.parentId.isNullOrBlank() }
+
+/** 某步骤的直接子步骤。 */
+fun List<PlanStep>.childrenOf(parentId: String): List<PlanStep> =
+    filter { it.parentId == parentId }
+
+/**
+ * 加权进度（含子步骤）：按树形展开计算，父步骤的进度由自身状态与其子步骤共同决定。
+ * 保证父步骤完成度不会超过其未完成子步骤的进度。
+ */
+fun List<PlanStep>.treeWeightedProgress(): Float {
+    if (isEmpty()) return 0f
+    val byParent = groupBy { it.parentId }
+    fun scoreOf(step: PlanStep): Double {
+        val children = byParent[step.id].orEmpty()
+        return if (children.isEmpty()) {
+            when (step.status) {
+                PlanStepStatus.COMPLETED, PlanStepStatus.SKIPPED -> 1.0
+                PlanStepStatus.IN_PROGRESS -> 0.5
+                else -> 0.0
+            }
+        } else {
+            children.sumOf { scoreOf(it) } / children.size
+        }
+    }
+    val roots = rootSteps()
+    if (roots.isEmpty()) return weightedProgress()
+    return (roots.sumOf { scoreOf(it) } / roots.size).toFloat().coerceIn(0f, 1f)
+}
+
+/** 收集某步骤的所有后代 id。 */
+fun List<PlanStep>.descendantIdsOf(rootId: String): Set<String> {
+    val result = mutableSetOf<String>()
+    fun walk(id: String) {
+        childrenOf(id).forEach { child ->
+            if (result.add(child.id)) walk(child.id)
+        }
+    }
+    walk(rootId)
+    return result
+}
 
 /**
  * 把模型请求与用户答案合并成最终视图。

@@ -29,7 +29,7 @@ class TranslationHandler(
         targetLanguage: Locale,
         onStreamUpdate: ((String) -> Unit)? = null,
     ): Flow<String> = flow {
-        val model = settings.providers.findModelById(settings.translateModeId)
+        val model = settings.resolveModelOrAssistant(settings.translateModeId)
             ?: error("Translation model not found")
         val provider = model.findProvider(settings.providers)
             ?: error("Translation provider not found")

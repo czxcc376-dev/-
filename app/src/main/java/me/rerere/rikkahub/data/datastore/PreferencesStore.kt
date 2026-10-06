@@ -272,21 +272,21 @@ class SettingsStore(
                 chatModelId = preferences[SELECT_MODEL]?.let { Uuid.parse(it) }
                     ?: DEFAULT_AUTO_MODEL_ID,
                 fastModelId = preferences[FAST_MODEL]?.let { Uuid.parse(it) }
-                    ?: DEFAULT_AUTO_MODEL_ID,
+                    ?: FOLLOW_ASSISTANT_MODEL_ID,
                 fastModelReasoningLevel = preferences[FAST_MODEL_REASONING_LEVEL]
                     ?.let { value -> ReasoningLevel.entries.find { it.name == value } }
                     ?: ReasoningLevel.AUTO,
                 translateModeId = preferences[TRANSLATE_MODEL]?.let { Uuid.parse(it) }
-                    ?: DEFAULT_AUTO_MODEL_ID,
+                    ?: FOLLOW_ASSISTANT_MODEL_ID,
                 enableSuggestion = preferences[ENABLE_SUGGESTION] != false,
                 imageGenerationModelId = preferences[IMAGE_GENERATION_MODEL]?.let { Uuid.parse(it) } ?: Uuid.random(),
                 titlePrompt = preferences[TITLE_PROMPT] ?: DEFAULT_TITLE_PROMPT,
                 translatePrompt = preferences[TRANSLATION_PROMPT] ?: DEFAULT_TRANSLATION_PROMPT,
                 translateThinkingBudget = preferences[TRANSLATE_THINKING_BUDGET] ?: 0,
                 suggestionPrompt = preferences[SUGGESTION_PROMPT] ?: DEFAULT_SUGGESTION_PROMPT,
-                ocrModelId = preferences[OCR_MODEL]?.let { Uuid.parse(it) } ?: Uuid.random(),
+                ocrModelId = preferences[OCR_MODEL]?.let { Uuid.parse(it) } ?: FOLLOW_ASSISTANT_MODEL_ID,
                 ocrPrompt = preferences[OCR_PROMPT] ?: DEFAULT_OCR_PROMPT,
-                compressModelId = preferences[COMPRESS_MODEL]?.let { Uuid.parse(it) } ?: DEFAULT_AUTO_MODEL_ID,
+                compressModelId = preferences[COMPRESS_MODEL]?.let { Uuid.parse(it) } ?: FOLLOW_ASSISTANT_MODEL_ID,
                 compressPrompt = preferences[COMPRESS_PROMPT] ?: DEFAULT_COMPRESS_PROMPT,
                 assistantId = preferences[SELECT_ASSISTANT]?.let { Uuid.parse(it) }
                     ?: DEFAULT_ASSISTANT_ID,
@@ -735,6 +735,23 @@ fun List<ProviderSetting>.findModelById(uuid: Uuid): Model? {
 
 fun Settings.getCurrentChatModel(): Model? {
     return findModelById(this.getCurrentAssistant().chatModelId ?: this.chatModelId)
+}
+
+/** 某项模型是否设置为「跟随当前助手」。 */
+fun Settings.isFollowingAssistant(modelId: Uuid?): Boolean =
+    modelId == FOLLOW_ASSISTANT_MODEL_ID
+
+/**
+ * 解析某项任务（翻译/OCR/压缩/快速模型等）实际使用的模型。
+ *
+ * 当设置为「跟随当前助手」或未配置时，回退到当前助手实际使用的聊天模型，
+ * 这样用户不必在每个下拉里重复选择同一个模型。
+ */
+fun Settings.resolveModelOrAssistant(modelId: Uuid?): Model? {
+    val assistantModel = getCurrentChatModel()
+    if (modelId == null || modelId == FOLLOW_ASSISTANT_MODEL_ID) return assistantModel
+    val direct = findModelById(modelId)
+    return if (direct != null && direct.id != FOLLOW_ASSISTANT_MODEL_ID) direct else assistantModel
 }
 
 fun Settings.getCurrentAssistant(): Assistant {

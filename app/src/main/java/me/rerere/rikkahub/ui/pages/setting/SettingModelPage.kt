@@ -1,5 +1,7 @@
 package me.rerere.rikkahub.ui.pages.setting
 
+import androidx.compose.foundation.clickable
+import androidx.compose.ui.draw.clip
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -39,7 +41,15 @@ import me.rerere.hugeicons.stroke.AiBrain01
 import me.rerere.hugeicons.stroke.AiEditing
 import me.rerere.hugeicons.stroke.ArrowRight01
 import me.rerere.rikkahub.R
+import androidx.compose.material3.Surface
+import androidx.compose.foundation.shape.RoundedCornerShape
+import me.rerere.hugeicons.stroke.LookTop
+import me.rerere.hugeicons.stroke.Tick02
+import androidx.compose.foundation.layout.fillMaxWidth
+import me.rerere.rikkahub.data.datastore.FOLLOW_ASSISTANT_MODEL_ID
 import me.rerere.rikkahub.data.datastore.Settings
+import me.rerere.rikkahub.data.datastore.getCurrentChatModel
+import me.rerere.rikkahub.data.datastore.isFollowingAssistant
 import me.rerere.rikkahub.ui.components.ai.ModelListSheet
 import me.rerere.rikkahub.ui.components.ai.ReasoningButton
 import me.rerere.rikkahub.ui.components.ai.rememberModelListState
@@ -101,6 +111,7 @@ fun SettingModelPage(vm: SettingVM = koinViewModel()) {
 
 @Composable
 private fun ModelSettingsPage(settings: Settings, vm: SettingVM, contentPadding: PaddingValues) {
+    val assistantModelName = settings.getCurrentChatModel()?.displayName
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
         contentPadding = contentPadding + PaddingValues(horizontal = 16.dp),
@@ -113,6 +124,12 @@ private fun ModelSettingsPage(settings: Settings, vm: SettingVM, contentPadding:
                 modelId = settings.chatModelId,
                 providers = settings.providers,
                 onSelect = { vm.updateSettings(settings.copy(chatModelId = it.id)) },
+                allowFollowAssistant = true,
+                followingAssistant = settings.isFollowingAssistant(settings.chatModelId),
+                assistantModelName = assistantModelName,
+                onSelectFollowAssistant = {
+                    vm.updateSettings(settings.copy(chatModelId = FOLLOW_ASSISTANT_MODEL_ID))
+                },
             )
         }
         item {
@@ -122,6 +139,12 @@ private fun ModelSettingsPage(settings: Settings, vm: SettingVM, contentPadding:
                 modelId = settings.fastModelId,
                 providers = settings.providers,
                 onSelect = { vm.updateSettings(settings.copy(fastModelId = it.id)) },
+                allowFollowAssistant = true,
+                followingAssistant = settings.isFollowingAssistant(settings.fastModelId),
+                assistantModelName = assistantModelName,
+                onSelectFollowAssistant = {
+                    vm.updateSettings(settings.copy(fastModelId = FOLLOW_ASSISTANT_MODEL_ID))
+                },
                 reasoningLevel = settings.fastModelReasoningLevel,
                 onUpdateReasoningLevel = {
                     vm.updateSettings(settings.copy(fastModelReasoningLevel = it))
@@ -141,6 +164,12 @@ private fun ModelSettingsPage(settings: Settings, vm: SettingVM, contentPadding:
                 modelId = settings.translateModeId,
                 providers = settings.providers,
                 onSelect = { vm.updateSettings(settings.copy(translateModeId = it.id)) },
+                allowFollowAssistant = true,
+                followingAssistant = settings.isFollowingAssistant(settings.translateModeId),
+                assistantModelName = assistantModelName,
+                onSelectFollowAssistant = {
+                    vm.updateSettings(settings.copy(translateModeId = FOLLOW_ASSISTANT_MODEL_ID))
+                },
             )
         }
         item {
@@ -150,6 +179,12 @@ private fun ModelSettingsPage(settings: Settings, vm: SettingVM, contentPadding:
                 modelId = settings.ocrModelId,
                 providers = settings.providers,
                 onSelect = { vm.updateSettings(settings.copy(ocrModelId = it.id)) },
+                allowFollowAssistant = true,
+                followingAssistant = settings.isFollowingAssistant(settings.ocrModelId),
+                assistantModelName = assistantModelName,
+                onSelectFollowAssistant = {
+                    vm.updateSettings(settings.copy(ocrModelId = FOLLOW_ASSISTANT_MODEL_ID))
+                },
             )
         }
         item {
@@ -159,6 +194,12 @@ private fun ModelSettingsPage(settings: Settings, vm: SettingVM, contentPadding:
                 modelId = settings.compressModelId,
                 providers = settings.providers,
                 onSelect = { vm.updateSettings(settings.copy(compressModelId = it.id)) },
+                allowFollowAssistant = true,
+                followingAssistant = settings.isFollowingAssistant(settings.compressModelId),
+                assistantModelName = assistantModelName,
+                onSelectFollowAssistant = {
+                    vm.updateSettings(settings.copy(compressModelId = FOLLOW_ASSISTANT_MODEL_ID))
+                },
             )
         }
     }
@@ -193,9 +234,16 @@ private fun ModelSettingItem(
     onSelect: (Model) -> Unit,
     reasoningLevel: ReasoningLevel? = null,
     onUpdateReasoningLevel: ((ReasoningLevel) -> Unit)? = null,
+    /** 是否允许「跟随当前助手」；开启后列表顶部会多一个选项。 */
+    allowFollowAssistant: Boolean = false,
+    /** 当前是否处于跟随状态。 */
+    followingAssistant: Boolean = false,
+    /** 当前助手实际使用的模型名，用于跟随态展示。 */
+    assistantModelName: String? = null,
+    onSelectFollowAssistant: (() -> Unit)? = null,
 ) {
     val state = rememberModelListState(
-        modelId = modelId,
+        modelId = if (followingAssistant) null else modelId,
         providers = providers,
         type = ModelType.CHAT,
     )
@@ -211,8 +259,15 @@ private fun ModelSettingItem(
                         horizontalArrangement = Arrangement.spacedBy(4.dp),
                     ) {
                         Text(
-                            text = state.currentModel?.displayName
-                                ?: stringResource(R.string.model_list_select_model),
+                            text = if (followingAssistant) {
+                                stringResource(
+                                    R.string.setting_model_page_follow_assistant_value,
+                                    assistantModelName ?: stringResource(R.string.model_list_select_model),
+                                )
+                            } else {
+                                state.currentModel?.displayName
+                                    ?: stringResource(R.string.model_list_select_model)
+                            },
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             maxLines = 1,
@@ -246,5 +301,73 @@ private fun ModelSettingItem(
         )
     }
 
-    ModelListSheet(state = state, onSelect = onSelect)
+    ModelListSheet(
+        state = state,
+        onSelect = onSelect,
+        header = if (allowFollowAssistant && onSelectFollowAssistant != null) {
+            {
+                FollowAssistantRow(
+                    selected = followingAssistant,
+                    assistantModelName = assistantModelName,
+                    onClick = {
+                        onSelectFollowAssistant()
+                        state.close()
+                    },
+                )
+            }
+        } else {
+            null
+        },
+    )
+}
+
+/** 模型列表顶部的「跟随当前助手」选项。 */
+@Composable
+private fun FollowAssistantRow(
+    selected: Boolean,
+    assistantModelName: String?,
+    onClick: () -> Unit,
+) {
+    Surface(
+        shape = RoundedCornerShape(12.dp),
+        color = if (selected) {
+            MaterialTheme.colorScheme.secondaryContainer
+        } else {
+            MaterialTheme.colorScheme.surfaceContainerHigh
+        },
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(12.dp))
+            .clickable(onClick = onClick),
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
+        ) {
+            Icon(HugeIcons.LookTop, contentDescription = null, modifier = Modifier.size(18.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = stringResource(R.string.setting_model_page_follow_assistant),
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+                Text(
+                    text = assistantModelName
+                        ?: stringResource(R.string.setting_model_page_follow_assistant_desc),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+            if (selected) {
+                Icon(
+                    HugeIcons.Tick02,
+                    contentDescription = null,
+                    modifier = Modifier.size(18.dp),
+                    tint = MaterialTheme.colorScheme.primary,
+                )
+            }
+        }
+    }
 }

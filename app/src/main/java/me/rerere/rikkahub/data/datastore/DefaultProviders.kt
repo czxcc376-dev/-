@@ -16,6 +16,9 @@ import kotlin.uuid.Uuid
 
 val DEFAULT_AUTO_MODEL_ID = Uuid.parse("b7055fb4-39f9-4042-a88a-0d80ed76cf08")
 
+/** 哨兵值：表示该项「跟随当前助手使用的模型」。 */
+val FOLLOW_ASSISTANT_MODEL_ID = Uuid.parse("f0110000-aa55-4550-ace0-f0110000a551")
+
 val DEFAULT_PROVIDERS = listOf(
     ProviderSetting.OpenAI(
         id = Uuid.parse("1eeea727-9ee5-4cae-93e6-6fb01a4d051e"),

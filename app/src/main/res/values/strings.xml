@@ -1436,4 +1436,8 @@
   <string name="plan_hud_expand">Expand plan</string>
   <string name="plan_hud_collapse">Collapse plan</string>
   <string name="chat_message_tool_interactive_plan_required_hint">Please answer the required questions above before starting.</string>
+  <string name="chat_message_tool_interactive_plan_overdue">Overdue</string>
+  <string name="setting_model_page_follow_assistant">Follow current assistant</string>
+  <string name="setting_model_page_follow_assistant_desc">Use the model of the current assistant</string>
+  <string name="setting_model_page_follow_assistant_value">Follow assistant: %1$s</string>
 </resources>

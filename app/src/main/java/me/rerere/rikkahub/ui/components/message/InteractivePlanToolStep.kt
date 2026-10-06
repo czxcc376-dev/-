@@ -27,6 +27,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import me.rerere.ai.ui.ToolApprovalState
@@ -43,6 +44,8 @@ import me.rerere.rikkahub.data.ai.tools.local.plan.PlanStep
 import me.rerere.rikkahub.data.ai.tools.local.plan.PlanStepStatus
 import me.rerere.rikkahub.data.ai.tools.local.plan.UserPlanStep
 import me.rerere.rikkahub.data.ai.tools.local.plan.buildPlanView
+import me.rerere.rikkahub.data.ai.tools.local.plan.childrenOf
+import me.rerere.rikkahub.data.ai.tools.local.plan.rootSteps
 import me.rerere.rikkahub.data.ai.tools.local.plan.decodePlanSnapshot
 import me.rerere.rikkahub.data.ai.tools.local.plan.toView
 import me.rerere.rikkahub.data.ai.tools.local.plan.unmetDependencies
@@ -50,6 +53,7 @@ import me.rerere.rikkahub.data.ai.tools.local.plan.weightedProgress
 import me.rerere.rikkahub.data.ai.tools.local.plan.encodePlanUserAnswer
 import me.rerere.rikkahub.data.ai.tools.local.plan.parsePlanRequest
 import me.rerere.rikkahub.data.ai.tools.local.plan.parsePlanUserAnswer
+import me.rerere.rikkahub.ui.components.message.plan.PlanAmbientGlow
 import me.rerere.rikkahub.ui.components.message.plan.PlanStatusGlyph
 import me.rerere.rikkahub.ui.components.ui.ChainOfThoughtScope
 import me.rerere.rikkahub.ui.components.ui.DotLoading
@@ -88,7 +92,8 @@ fun ChainOfThoughtScope.InteractivePlanToolStep(
     val answers = remember(tool.toolCallId) { mutableStateMapOf<String, String>() }
     val multiAnswers = remember(tool.toolCallId) { mutableStateMapOf<String, Set<String>>() }
 
-    var expanded by remember(tool.toolCallId) { mutableStateOf(true) }
+    // 默认折叠，避免长计划挤占聊天流；用户点标题即可展开。
+    var expanded by remember(tool.toolCallId) { mutableStateOf(false) }
 
     // 只读结果视图，优先级：
     // 1) 用户已回答 -> 用「原始入参 + 用户答案」重建（修复确认后无法展开的 bug）；
@@ -145,9 +150,20 @@ fun ChainOfThoughtScope.InteractivePlanToolStep(
             }
         },
         content = {
+            PlanAmbientGlow(
+                active = resultView == null || resultView.operation != InteractivePlanOperation.CANCEL,
+                colors = listOf(
+                    MaterialTheme.colorScheme.primary,
+                    MaterialTheme.colorScheme.tertiary,
+                    MaterialTheme.colorScheme.secondary,
+                    MaterialTheme.colorScheme.primary,
+                ),
+            ) {
             Column(
                 verticalArrangement = Arrangement.spacedBy(12.dp),
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 12.dp, vertical = 10.dp)
             ) {
                 if (resultView != null) {
                     PlanResultContent(view = resultView)
@@ -225,6 +241,7 @@ fun ChainOfThoughtScope.InteractivePlanToolStep(
                         },
                     )
                 }
+            }
             }
         },
     )
@@ -336,8 +353,13 @@ private fun PlanResultContent(view: InteractivePlanView) {
                 style = MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.secondary,
             )
-            view.steps.forEach { step ->
-                PlanStepResultRow(step = step, allSteps = view.steps)
+            // 树形渲染：顶层步骤 + 缩进的子步骤
+            val roots = view.steps.rootSteps().ifEmpty { view.steps }
+            roots.forEach { root ->
+                PlanStepResultRow(step = root, allSteps = view.steps, depth = 0)
+                view.steps.childrenOf(root.id).forEach { child ->
+                    PlanStepResultRow(step = child, allSteps = view.steps, depth = 1)
+                }
             }
         }
     }
@@ -376,11 +398,17 @@ private fun PlanResultContent(view: InteractivePlanView) {
 
 /** 单条步骤的只读结果行。 */
 @Composable
-private fun PlanStepResultRow(step: PlanStep, allSteps: List<PlanStep>) {
+private fun PlanStepResultRow(
+    step: PlanStep,
+    allSteps: List<PlanStep>,
+    depth: Int = 0,
+) {
     Row(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(8.dp),
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(start = (depth * 16).dp),
     ) {
         PlanStatusGlyph(status = step.status, size = 12.dp)
         Column(modifier = Modifier.weight(1f)) {
@@ -404,11 +432,54 @@ private fun PlanStepResultRow(step: PlanStep, allSteps: List<PlanStep>) {
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
+            if (step.owner.isNotBlank() || step.labels.isNotEmpty() || step.isOverdue()) {
+                PlanStepChips(step = step)
+            }
         }
         Text(
             text = statusLabel(step.status),
             style = MaterialTheme.typography.labelSmall,
             color = statusColor(step.status),
+        )
+    }
+}
+
+/** 负责人 / 标签 / 逾期提示的小徽章行。 */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun PlanStepChips(step: PlanStep) {
+    FlowRow(
+        horizontalArrangement = Arrangement.spacedBy(4.dp),
+        verticalArrangement = Arrangement.spacedBy(2.dp),
+    ) {
+        if (step.isOverdue()) {
+            PlanChip(
+                text = stringResource(R.string.chat_message_tool_interactive_plan_overdue),
+                container = MaterialTheme.colorScheme.errorContainer,
+                content = MaterialTheme.colorScheme.onErrorContainer,
+            )
+        }
+        if (step.owner.isNotBlank()) {
+            PlanChip(text = step.owner)
+        }
+        step.labels.forEach { label ->
+            PlanChip(text = "#$label")
+        }
+    }
+}
+
+@Composable
+private fun PlanChip(
+    text: String,
+    container: Color = MaterialTheme.colorScheme.secondaryContainer,
+    content: Color = MaterialTheme.colorScheme.onSecondaryContainer,
+) {
+    Surface(color = container, shape = MaterialTheme.shapes.extraSmall) {
+        Text(
+            text = text,
+            style = MaterialTheme.typography.labelSmall,
+            color = content,
+            modifier = Modifier.padding(horizontal = 6.dp, vertical = 1.dp),
         )
     }
 }

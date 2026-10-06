@@ -60,6 +60,7 @@ import me.rerere.rikkahub.data.ai.tools.local.plan.parsePlanRequest
 import me.rerere.rikkahub.data.ai.tools.local.plan.parsePlanUserAnswer
 import me.rerere.rikkahub.data.ai.tools.local.plan.toView
 import me.rerere.rikkahub.data.ai.tools.local.plan.unmetDependencies
+import me.rerere.rikkahub.data.ai.tools.local.plan.treeWeightedProgress
 import me.rerere.rikkahub.data.ai.tools.local.plan.weightedProgress
 import me.rerere.rikkahub.data.model.Conversation
 import me.rerere.rikkahub.data.model.MessageNode
@@ -171,12 +172,22 @@ fun PlanHudPanel(
         if (typing) expanded = false
     }
 
+    PlanAmbientGlow(
+        active = !activePlan.isPending && view.operation != InteractivePlanOperation.CANCEL,
+        colors = listOf(
+            MaterialTheme.colorScheme.primary,
+            MaterialTheme.colorScheme.tertiary,
+            MaterialTheme.colorScheme.secondary,
+            MaterialTheme.colorScheme.primary,
+        ),
+        // 水平内边距由 ChatInput 的 header 容器统一提供，这里只保证占满宽度，避免双重缩进。
+        modifier = modifier,
+    ) {
     Surface(
         color = MaterialTheme.colorScheme.surfaceContainerHigh,
         shape = RoundedCornerShape(16.dp),
         tonalElevation = 2.dp,
-        // 水平内边距由 ChatInput 的 header 容器统一提供，这里只保证占满宽度，避免双重缩进。
-        modifier = modifier.fillMaxWidth(),
+        modifier = Modifier.fillMaxWidth(),
     ) {
         Column(modifier = Modifier.fillMaxWidth()) {
             PlanHudHeader(
@@ -194,6 +205,7 @@ fun PlanHudPanel(
             }
         }
     }
+    }
 }
 
 @Composable
@@ -203,7 +215,7 @@ private fun PlanHudHeader(
     onToggle: () -> Unit,
 ) {
     val view = activePlan.view
-    val progress = view.steps.weightedProgress()
+    val progress = view.steps.treeWeightedProgress()
     val done = view.doneCount
     val total = view.totalCount
 
@@ -364,11 +376,13 @@ private fun PlanHudSection(
             color = if (emphasize) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.secondary,
         )
         steps.forEach { step ->
+            val depth = if (step.parentId.isNullOrBlank()) 0 else 1
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 modifier = Modifier
                     .fillMaxWidth()
+                    .padding(start = (depth * 14).dp)
                     .clip(RoundedCornerShape(8.dp))
                     .clickable(onClick = onJumpToPlan)
                     .padding(vertical = 2.dp),

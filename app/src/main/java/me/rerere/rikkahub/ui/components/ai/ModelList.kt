@@ -265,6 +265,8 @@ internal fun ModelSelectorButton(
 fun ModelListSheet(
     state: ModelListState,
     onSelect: (Model) -> Unit,
+    /** 可选的顶部条目（例如「跟随当前助手」），展示在模型列表最上方。 */
+    header: (@Composable () -> Unit)? = null,
 ) {
     if (!state.visible) return
 
@@ -298,6 +300,7 @@ fun ModelListSheet(
                 currentModel = state.modelId,
                 providers = state.filteredProviders,
                 modelType = state.type,
+                header = header,
                 onSelect = {
                     onSelect(it)
                     dismiss()
@@ -316,7 +319,8 @@ private fun ColumnScope.ModelList(
     providers: List<ProviderSetting>,
     modelType: ModelType,
     onSelect: (Model) -> Unit,
-    onDismiss: () -> Unit
+    onDismiss: () -> Unit,
+    header: (@Composable () -> Unit)? = null,
 ) {
     val coroutineScope = rememberCoroutineScope()
     val settingsStore = koinInject<SettingsStore>()
@@ -499,6 +503,9 @@ private fun ColumnScope.ModelList(
             .weight(1f)
             .fillMaxWidth(),
     ) {
+        if (header != null) {
+            item(key = "model_list_header") { header() }
+        }
         if (providers.isEmpty()) {
             item {
                 Text(

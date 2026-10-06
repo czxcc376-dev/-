@@ -1433,4 +1433,8 @@
   <string name="plan_hud_expand">展開計畫</string>
   <string name="plan_hud_collapse">收起計畫</string>
   <string name="chat_message_tool_interactive_plan_required_hint">請先回答上方標記為必答的問題，再開始執行。</string>
+  <string name="chat_message_tool_interactive_plan_overdue">已逾期</string>
+  <string name="setting_model_page_follow_assistant">跟隨目前助手</string>
+  <string name="setting_model_page_follow_assistant_desc">使用目前助手所配置的模型</string>
+  <string name="setting_model_page_follow_assistant_value">跟隨助手：%1$s</string>
 </resources>
