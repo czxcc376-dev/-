@@ -44,4 +44,8 @@ sealed class LocalToolOption {
     @Serializable
     @SerialName("reverse_toolkit")
     data object ReverseToolkit : LocalToolOption()
+
+    @Serializable
+    @SerialName("radare2")
+    data object Radare2 : LocalToolOption()
 }

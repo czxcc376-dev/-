@@ -1442,6 +1442,8 @@ mDNS 地址：使用 .local 主机名，同一网络中的其他设备可通过�
   <string name="setting_model_page_follow_assistant_value">跟随助手：%1$s</string>
   <string name="assistant_page_local_tools_reverse_toolkit_title">逆向工具箱</string>
   <string name="assistant_page_local_tools_reverse_toolkit_desc">离线编解码与字符串分析：Base64、十六进制、URL、哈希、IP/域名/JWT 提取、XOR 爆破</string>
+  <string name="assistant_page_local_tools_radare2_title">radare2 (r2)</string>
+  <string name="assistant_page_local_tools_radare2_desc">内置离线 radare2：文件信息、导入导出、字符串、反汇编、函数、搜索与二进制差异，用于二进制/APK/SO 分析</string>
   <string name="chat_message_tool_interactive_plan_rerun">重做此步骤</string>
   <string name="setting_enhanced_title">增强服务</string>
   <string name="setting_enhanced_entry">增强服务</string>

@@ -267,6 +267,7 @@ dependencies {
 
     // Apache Commons Text
     implementation(libs.commons.text)
+    implementation(libs.documentfile)
 
     // Toast (Sonner)
     implementation(libs.sonner)

@@ -256,6 +256,20 @@ private fun AssistantLocalToolContent(
             )
             item(
                 headlineContent = {
+                    Text(stringResource(R.string.assistant_page_local_tools_radare2_title))
+                },
+                supportingContent = {
+                    Text(stringResource(R.string.assistant_page_local_tools_radare2_desc))
+                },
+                trailingContent = {
+                    Switch(
+                        checked = assistant.localTools.contains(LocalToolOption.Radare2),
+                        onCheckedChange = { toggleLocalTool(LocalToolOption.Radare2, it) }
+                    )
+                }
+            )
+            item(
+                headlineContent = {
                     Text(stringResource(R.string.assistant_page_local_tools_chart_display_title))
                 },
                 supportingContent = {

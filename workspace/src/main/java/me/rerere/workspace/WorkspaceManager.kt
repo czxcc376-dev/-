@@ -10,12 +10,22 @@ class WorkspaceManager(
     private val baseDir: File,
     private val config: WorkspaceConfig = WorkspaceConfig(),
     private val shellRunner: WorkspaceShellRunner = HostShellRunner(),
-    private val bindMounts: List<WorkspaceBindMount> = emptyList(),
+    initialBindMounts: List<WorkspaceBindMount> = emptyList(),
 ) {
     private val fileSystem = WorkspaceFileSystem(config)
 
-    // 按 target 长度降序, 保证 /a/b 优先于 /a 匹配
-    private val sortedBindMounts = bindMounts.sortedByDescending { it.target.trimEnd('/').length }
+    // 动态挂载表：外部授权目录挂载后需要热更新，且同时驱动 PRoot 的 -b 与文件工具路径解析。
+    private var bindMounts: List<WorkspaceBindMount> = initialBindMounts
+    private var sortedBindMounts: List<WorkspaceBindMount> =
+        initialBindMounts.sortedByDescending { it.target.trimEnd('/').length }
+
+    /** 热更新挂载表（外部目录挂载/卸载后调用）。 */
+    fun setBindMounts(mounts: List<WorkspaceBindMount>) {
+        bindMounts = mounts
+        sortedBindMounts = mounts.sortedByDescending { it.target.trimEnd('/').length }
+    }
+
+    fun currentBindMounts(): List<WorkspaceBindMount> = bindMounts
 
     init {
         baseDir.mkdirs()

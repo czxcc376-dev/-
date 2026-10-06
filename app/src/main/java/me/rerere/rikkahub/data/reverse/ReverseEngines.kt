@@ -31,21 +31,29 @@ object ReverseWorkspace {
     }
 }
 
+object ReverseRuntime {
+    /** 可用核数：反汇编/反编译/回编译并行度。 */
+    val parallelism: Int = Runtime.getRuntime().availableProcessors().coerceAtLeast(1)
+}
+
 object SmaliEngine {
     /** DEX 或 APK 内所有 dex -> smali 目录，返回生成的 smali 文件数量。 */
-    fun disassemble(input: File, outputDir: File, apiLevel: Int = 30): Int {
+    fun disassemble(input: File, outputDir: File, apiLevel: Int = 30, jobs: Int = ReverseRuntime.parallelism): Int {
         outputDir.mkdirs()
         val opcodes = Opcodes.forApi(apiLevel)
         val container = DexFileFactory.loadDexContainer(input, opcodes)
         var count = 0
         for (entryName in container.dexEntryNames) {
             val entry = container.getEntry(entryName) ?: continue
-            val options = BaksmaliOptions().apply { this.apiLevel = apiLevel }
+            val options = BaksmaliOptions().apply {
+                this.apiLevel = apiLevel
+                this.debugInfo = true
+            }
             val subDir = if (container.dexEntryNames.size > 1) {
                 File(outputDir, entryName.removeSuffix(".dex"))
             } else outputDir
             subDir.mkdirs()
-            if (Baksmali.disassembleDexFile(entry.dexFile, subDir, 1, options)) {
+            if (Baksmali.disassembleDexFile(entry.dexFile, subDir, jobs.coerceAtLeast(1), options)) {
                 count += subDir.walkTopDown().count { it.isFile && it.name.endsWith(".smali") }
             }
         }
@@ -53,11 +61,11 @@ object SmaliEngine {
     }
 
     /** smali 目录或单文件 -> 单个 DEX。 */
-    fun assemble(input: File, outputDex: File, apiLevel: Int = 30): Boolean {
+    fun assemble(input: File, outputDex: File, apiLevel: Int = 30, jobs: Int = ReverseRuntime.parallelism): Boolean {
         val options = SmaliOptions().apply {
             this.apiLevel = apiLevel
             this.outputDexFile = outputDex.absolutePath
-            this.jobs = 1
+            this.jobs = jobs.coerceAtLeast(1)
         }
         val targets = if (input.isDirectory) {
             input.walkTopDown().filter { it.isFile && it.name.endsWith(".smali") }
@@ -72,36 +80,46 @@ object SmaliEngine {
 }
 
 object JadxEngine {
-    /** 使用 jadx 将 APK/DEX 反编译为 Java 源码到 outputDir/src。 */
-    fun decompile(input: File, outputDir: File, threads: Int = 2): Int {
-        outputDir.mkdirs()
+    /**
+     * 使用 jadx 将 APK/DEX 并行反编译为 Java 源码到 outputDir/src。
+     *
+     * 之前是单线程逐类 `cls.code`，全量 APK 会非常慢；这里改用 jadx 内置的
+     * `save(threads)`（内部按线程池并行反编译并落盘），再把源码挪到 outputDir/src。
+     */
+    fun decompile(input: File, outputDir: File, threads: Int = ReverseRuntime.parallelism): Int {
+        val srcDir = File(outputDir, "src")
+        srcDir.mkdirs()
+        val work = File(outputDir, "jadx-out").apply { mkdirs() }
         val args = jadx.api.JadxArgs().apply {
             setInputFile(input)
-            setOutDir(outputDir)
-            setOutDirSrc(File(outputDir, "src"))
-            setOutDirRes(File(outputDir, "res"))
-            setThreadsCount(threads)
+            setOutDir(work)
+            setOutDirSrc(File(work, "sources"))
+            setOutDirRes(File(work, "resources"))
+            setThreadsCount(threads.coerceAtLeast(1))
             setSkipResources(true)
+            setSkipSources(false)
+            setEscapeUnicode(false)
+            setShowInconsistentCode(false)
+            setCommentsLevel(jadx.api.CommentsLevel.ERROR)
+            runCatching { setDecompilationMode(jadx.api.DecompilationMode.AUTO) }
         }
         val decompiler = jadx.api.JadxDecompiler(args)
         decompiler.load()
         return try {
-            val classes = decompiler.classes
-            var ok = 0
-            for (cls in classes) {
-                runCatching {
-                    val code = cls.code
-                    if (!code.isNullOrBlank()) {
-                        val path = File(File(outputDir, "src"), cls.fullName.replace('.', '/') + ".java")
-                        path.parentFile?.mkdirs()
-                        path.writeText(code)
-                        ok++
-                    }
-                }
+            // 并行反编译并落盘（jadx 会使用 threads 个线程）
+            decompiler.save(threads.coerceAtLeast(1))
+            val generated = File(work, "sources")
+            val javaFiles = if (generated.isDirectory) {
+                generated.walkTopDown().filter { it.isFile && it.name.endsWith(".java") }.count()
+            } else 0
+            // 源目录搬回 outputDir/src，便于上层统一处理
+            if (generated.isDirectory) {
+                generated.copyRecursively(srcDir, overwrite = true)
             }
-            ok
+            javaFiles
         } finally {
             runCatching { decompiler.close() }
+            runCatching { work.deleteRecursively() }
         }
     }
 }

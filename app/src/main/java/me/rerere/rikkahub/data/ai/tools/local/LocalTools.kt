@@ -37,6 +37,8 @@ class LocalTools(
 
     val apkToolkitTool by lazy { buildApkToolkitTool(context) }
 
+    val radare2Tool by lazy { buildRadare2Tool(context) }
+
     fun getTools(options: List<LocalToolOption>): List<Tool> {
         val tools = mutableListOf<Tool>()
         if (options.contains(LocalToolOption.JavascriptEngine)) {
@@ -72,6 +74,9 @@ class LocalTools(
         }
         if (options.contains(LocalToolOption.ReverseToolkit)) {
             tools.add(apkToolkitTool)
+        }
+        if (options.contains(LocalToolOption.Radare2)) {
+            tools.add(radare2Tool)
         }
         return tools
     }

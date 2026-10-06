@@ -70,6 +70,7 @@ apktool = "2.11.1"
 jadx = "1.5.2"
 
 [libraries]
+documentfile = { module = "androidx.documentfile:documentfile", version = "1.0.0" }
 android-gradle-plugin = { module = "com.android.tools.build:gradle", version.ref = "agp" }
 kotlin-compose-gradle-plugin = { module = "org.jetbrains.kotlin:compose-compiler-gradle-plugin", version.ref = "kotlin" }
 kotlin-gradle-plugin = { module = "org.jetbrains.kotlin:kotlin-gradle-plugin", version.ref = "kotlin" }
