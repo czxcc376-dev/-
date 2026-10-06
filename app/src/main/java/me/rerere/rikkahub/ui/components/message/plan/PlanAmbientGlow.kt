@@ -1,93 +1,89 @@
 package me.rerere.rikkahub.ui.components.message.plan
 
-import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.graphics.drawscope.rotate
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 
 /**
- * 计划卡片的「流动氛围光效」。
+ * 计划卡片的「氛围光效」。
  *
- * 用一层绕中心缓慢旋转的锥形渐变描边，模拟呼吸/流动的高光，比静态边框更有生命力，
- * 又不像 Material 那样有强制的样式语言。整体克制：低透明度、慢速、不抢内容。
+ * 设计取向：**不要转圈**。旋转的锥形渐变会让人误以为在加载，也会让边框看起来在漂移。
+ * 这里改成：
+ * - 一圈固定的水平渐变描边（左→右流动的色带，静止不旋转）；
+ * - 叠加极缓慢的呼吸透明度，让卡片「活着」但不抢戏；
+ * - 边框严格贴合自身尺寸，圆角与卡片一致，不产生错位/大小偏差。
  *
- * @param active 计划仍在推进时，光效更亮、转得更快；完成/取消后转为极淡的静态收束。
+ * @param active 计划仍在推进：光效略亮；完成/取消：转为很淡的静态收束。
  */
 @Composable
 fun PlanAmbientGlow(
     modifier: Modifier = Modifier,
     colors: List<Color>,
     active: Boolean = true,
+    cornerRadius: Dp = 16.dp,
+    strokeWidth: Dp = 1.5.dp,
     content: @Composable BoxScope.() -> Unit,
 ) {
     val transition = rememberInfiniteTransition(label = "planGlow")
-    val angle by transition.animateFloat(
-        initialValue = 0f,
-        targetValue = 360f,
+    val breath by transition.animateFloat(
+        initialValue = if (active) 0.55f else 0.22f,
+        targetValue = if (active) 1f else 0.38f,
         animationSpec = infiniteRepeatable(
-            animation = tween(
-                durationMillis = if (active) 6000 else 14000,
-                easing = LinearEasing,
-            ),
+            animation = tween(durationMillis = if (active) 2600 else 5200, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse,
         ),
-        label = "glowAngle",
-    )
-    val pulse by transition.animateFloat(
-        initialValue = 0.45f,
-        targetValue = 0.85f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = if (active) 2200 else 4200, easing = LinearEasing),
-            repeatMode = androidx.compose.animation.core.RepeatMode.Reverse,
-        ),
-        label = "glowPulse",
+        label = "breath",
     )
 
     val palette = if (colors.isEmpty()) {
-        listOf(Color(0xFF6C7BFF), Color(0xFF9D5CFF), Color(0xFF38D6C7), Color(0xFF6C7BFF))
+        listOf(Color(0xFF7C8CFF), Color(0xFF9D5CFF), Color(0xFF39D6C8), Color(0xFF7C8CFF))
     } else {
         colors
     }
 
-    Box(
-        modifier = modifier
-            .fillMaxWidth()
-            .drawBehind {
-                val stroke = 1.5.dp.toPx()
-                val inset = stroke / 2f
-                val corner = 18.dp.toPx()
-                val brush = Brush.sweepGradient(
-                    colors = palette.map { it.copy(alpha = it.alpha * pulse) },
-                    center = Offset(size.width / 2f, size.height / 2f),
-                )
-                rotate(degrees = angle, pivot = Offset(size.width / 2f, size.height / 2f)) {
+    Box(modifier = modifier) {
+        // 固定渐变描边：不旋转，只呼吸。
+        Box(
+            modifier = Modifier
+                .matchParentSize()
+                .drawBehind {
+                    val stroke = strokeWidth.toPx()
+                    val inset = stroke / 2f
+                    val radius = cornerRadius.toPx()
+                    val sheen = Brush.linearGradient(
+                        colors = palette.map { it.copy(alpha = it.alpha * breath) },
+                        start = Offset(0f, 0f),
+                        end = Offset(size.width, size.height),
+                    )
                     drawRoundRect(
-                        brush = brush,
+                        brush = sheen,
                         topLeft = Offset(inset, inset),
                         size = Size(
                             width = (size.width - stroke).coerceAtLeast(0f),
                             height = (size.height - stroke).coerceAtLeast(0f),
                         ),
-                        cornerRadius = androidx.compose.ui.geometry.CornerRadius(corner, corner),
+                        cornerRadius = CornerRadius(radius, radius),
                         style = Stroke(width = stroke),
                     )
-                }
-            },
-    ) {
+                },
+        )
         content()
     }
 }

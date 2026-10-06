@@ -81,29 +81,37 @@ class RikkaHubApp : Application() {
         // install crash handler
         CrashHandler.install(this)
 
-        // delete temp files
-        deleteTempFiles()
+        // ---- 启动性能：以下均为「非首屏必需」的维护任务 ----
+        // 它们各自已经切到 AppScope 的协程里，但 Application.onCreate 仍在主线程；
+        // 统一延后到首帧之后再触发，避免抢占冷启动的 CPU/IO。
+        get<AppScope>().launch {
+            // 让首帧先渲染（尤其是启动动画），再做清理与同步。
+            delay(1500)
 
-        // cleanup stale tool output files
-        cleanupToolOutputs()
+            // delete temp files
+            deleteTempFiles()
 
-        // cleanup workspace temp dirs (proot + rootfs /tmp)
-        cleanupWorkspaceTempDirs()
+            // cleanup stale tool output files
+            cleanupToolOutputs()
 
-        // check workspace integrity (mark workspaces with missing files as broken after backup restore)
-        checkWorkspaceIntegrity()
+            // cleanup workspace temp dirs (proot + rootfs /tmp)
+            cleanupWorkspaceTempDirs()
 
-        // sync upload files to DB
-        syncManagedFiles()
+            // check workspace integrity (mark workspaces with missing files as broken)
+            checkWorkspaceIntegrity()
 
-        // Extract builtin skills from assets after install/update
-        extractBuiltinSkills()
+            // sync upload files to DB
+            syncManagedFiles()
 
-        // Start WebServer if enabled in settings
-        startWebServerIfEnabled()
+            // Extract builtin skills from assets after install/update
+            extractBuiltinSkills()
 
-        // Increment launch count
-        incrementLaunchCount()
+            // Start WebServer if enabled in settings
+            startWebServerIfEnabled()
+
+            // Increment launch count
+            incrementLaunchCount()
+        }
 
         // Composer.setDiagnosticStackTraceMode(ComposeStackTraceMode.Auto)
     }

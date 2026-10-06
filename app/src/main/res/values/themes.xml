@@ -2,4 +2,9 @@
 <resources>
 
 <style name="Theme.Rikkahub" parent="Theme.Material3.DayNight.NoActionBar" />
+<style name="Theme.Rikkahub.Splash" parent="Theme.Material3.DayNight.NoActionBar">
+  <item name="android:windowBackground">@color/splash_bg</item>
+  <item name="android:statusBarColor">@android:color/transparent</item>
+  <item name="android:navigationBarColor">@android:color/transparent</item>
+</style>
 </resources>

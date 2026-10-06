@@ -26,6 +26,10 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import me.rerere.rikkahub.ui.pages.splash.SplashOverlay
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
@@ -193,7 +197,14 @@ class RouteActivity : ComponentActivity() {
                         }
                         .build()
                 }
-                AppRoutes()
+                // 启动动画：覆盖在路由之上，播完自动移除（仅冷启动一次）。
+                var showSplash by remember { mutableStateOf(savedInstanceState == null) }
+                Box(modifier = androidx.compose.ui.Modifier.fillMaxSize()) {
+                    AppRoutes()
+                    if (showSplash) {
+                        SplashOverlay(onFinished = { showSplash = false })
+                    }
+                }
             }
         }
     }
