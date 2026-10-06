@@ -5,10 +5,6 @@ import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Row
-import me.rerere.rikkahub.ui.components.message.plan.PlanWorkbenchSidePanel
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.AlertDialog
@@ -66,7 +62,6 @@ import me.rerere.rikkahub.ui.components.message.plan.findActivePlan
 import me.rerere.hugeicons.stroke.Cancel01
 import me.rerere.hugeicons.stroke.LeftToRightListBullet
 import me.rerere.hugeicons.stroke.Menu03
-import me.rerere.hugeicons.stroke.Task01
 import me.rerere.hugeicons.stroke.MessageAdd01
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.datastore.Settings
@@ -97,6 +92,9 @@ import org.koin.androidx.compose.koinViewModel
 import org.koin.compose.koinInject
 import org.koin.core.parameter.parametersOf
 import kotlin.time.Duration.Companion.milliseconds
+import dev.chrisbanes.haze.HazeInput
+import dev.chrisbanes.haze.blur.HazeBlurStyle
+import dev.chrisbanes.haze.blur.hazeChild
 import kotlin.uuid.Uuid
 
 @Composable
@@ -140,8 +138,6 @@ fun ChatPage(id: Uuid, text: String?, files: List<Uri>, nodeId: Uuid? = null) {
     val windowAdaptiveInfo = currentWindowDpSize()
     val isBigScreen =
         windowAdaptiveInfo.width > windowAdaptiveInfo.height && windowAdaptiveInfo.width >= 1100.dp
-    // 双栏工作台：横屏且足够宽时展示右栏计划工作台。
-    val workbenchVisible = isBigScreen
 
     // 进入大屏（永久抽屉）模式时重置抽屉状态为关闭，
     // 避免从横屏旋转回竖屏后，模态抽屉残留为打开状态且无法关闭（#1304）
@@ -224,7 +220,6 @@ fun ChatPage(id: Uuid, text: String?, files: List<Uri>, nodeId: Uuid? = null) {
                     enableWebSearch = enableWebSearch,
                     currentChatModel = currentChatModel,
                     bigScreen = true,
-                    workbenchVisible = workbenchVisible,
                     errors = errors,
                     onDismissError = { vm.dismissError(it) },
                     onClearAllErrors = { vm.clearAllErrors() },
@@ -258,7 +253,6 @@ fun ChatPage(id: Uuid, text: String?, files: List<Uri>, nodeId: Uuid? = null) {
                     enableWebSearch = enableWebSearch,
                     currentChatModel = currentChatModel,
                     bigScreen = false,
-                    workbenchVisible = workbenchVisible,
                     errors = errors,
                     onDismissError = { vm.dismissError(it) },
                     onClearAllErrors = { vm.clearAllErrors() },
@@ -279,7 +273,6 @@ private fun ChatPageContent(
     processingStatus: String? = null,
     setting: Settings,
     bigScreen: Boolean,
-    workbenchVisible: Boolean = bigScreen,
     conversation: Conversation,
     drawerState: DrawerState,
     navController: Navigator,
@@ -297,12 +290,6 @@ private fun ChatPageContent(
     var previewMode by rememberSaveable { mutableStateOf(false) }
     val hazeState = rememberHazeState()
     val assistant = setting.getCurrentAssistant()
-    // 当前活跃计划：bottomBar 的 HUD 与内容区右栏的工作台共用同一份。
-    val activePlan: ActivePlan? = remember(conversation.messageNodes) {
-        conversation.findActivePlan()
-    }
-    // 工作台手动打开/折叠：竖屏也能从顶栏入口打开。
-    var workbenchOpen by rememberSaveable { mutableStateOf(false) }
     var showFilesSheet by remember { mutableStateOf(false) }
     val attachmentPickerActions = rememberChatAttachmentPickerActions(
         inputState = inputState,
@@ -333,15 +320,28 @@ private fun ChatPageContent(
         AssistantBackground(setting = setting, modifier = Modifier.hazeSource(hazeState))
         Scaffold(
             topBar = {
+                Surface(
+                    color = if (setting.displaySetting.enableBlurEffect && !setting.displaySetting.performanceMode)
+                        Color.Transparent
+                    else
+                        MaterialTheme.colorScheme.background,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .then(
+                            if (setting.displaySetting.enableBlurEffect && !setting.displaySetting.performanceMode) {
+                                Modifier.hazeChild(
+                                    input = HazeInput.Sources(hazeState),
+                                    style = HazeBlurStyle.Material3 { blurRadius(20.dp) },
+                                )
+                            } else Modifier
+                        ),
+                ) {
                 TopBar(
                     settings = setting,
                     conversation = conversation,
                     bigScreen = bigScreen,
                     drawerState = drawerState,
                     previewMode = previewMode,
-                    hasActivePlan = activePlan != null,
-                    workbenchOpen = workbenchOpen,
-                    onToggleWorkbench = { workbenchOpen = !workbenchOpen },
                     onNewChat = {
                         navigateToChatPage(navController)
                     },
@@ -352,12 +352,16 @@ private fun ChatPageContent(
                         vm.updateTitle(it)
                     }
                 )
+                }
             },
             bottomBar = {
                 val messageQueue by vm.messageQueue.collectAsStateWithLifecycle()
                 val voiceState by vm.voiceSession.state.collectAsStateWithLifecycle()
 
                 // 输入框上方的计划 HUD：折叠显示当前步骤与进度，展开显示全部步骤；无计划时不显示。
+                val activePlan: ActivePlan? = remember(conversation.messageNodes) {
+                    conversation.findActivePlan()
+                }
                 ChatInput(
                     // HUD 作为输入框的 header 参与同一套布局与内边距，避免与输入框重叠。
                     header = {
@@ -480,176 +484,84 @@ private fun ChatPageContent(
             },
             containerColor = Color.Transparent,
         ) { innerPadding ->
-            if ((workbenchVisible || workbenchOpen) && activePlan != null) {
-                Row(modifier = Modifier.fillMaxSize()) {
-                    Box(modifier = Modifier.weight(1f)) {
-                                    ChatList(
-                                        innerPadding = innerPadding,
-                                        conversation = conversation,
-                                        state = chatListState,
-                                        loading = loadingJob != null,
-                                        processingStatus = processingStatus,
-                                        previewMode = previewMode,
-                                        settings = setting,
-                                        hazeState = hazeState,
-                                        errors = errors,
-                                        onDismissError = onDismissError,
-                                        onClearAllErrors = onClearAllErrors,
-                                        onRegenerate = {
-                                            vm.regenerateAtMessage(it)
-                                        },
-                                        onEdit = {
-                                            inputState.editingMessage = it.id
-                                            inputState.setContents(it.parts)
-                                        },
-                                        onForkMessage = {
-                                            scope.launch {
-                                                val fork = vm.forkMessage(message = it)
-                                                navigateToChatPage(navController, chatId = fork.id)
-                                            }
-                                        },
-                                        onDelete = {
-                                            if (loadingJob != null) {
-                                                vm.showDeleteBlockedWhileGeneratingError()
-                                            } else {
-                                                vm.deleteMessage(it)
-                                            }
-                                        },
-                                        onUpdateMessage = { newNode ->
-                                            vm.updateConversation(
-                                                conversation.copy(
-                                                    messageNodes = conversation.messageNodes.map { node ->
-                                                        if (node.id == newNode.id) {
-                                                            newNode
-                                                        } else {
-                                                            node
-                                                        }
-                                                    }
-                                                ))
-                                            vm.saveConversationAsync()
-                                        },
-                                        onClickSuggestion = { suggestion ->
-                                            inputState.editingMessage = null
-                                            inputState.setMessageText(suggestion)
-                                        },
-                                        onTranslate = { message, locale ->
-                                            vm.translateMessage(message, locale)
-                                        },
-                                        onClearTranslation = { message ->
-                                            vm.clearTranslationField(message.id)
-                                        },
-                                        onJumpToMessage = { index ->
-                                            previewMode = false
-                                            scope.launch {
-                                                chatListState.requestScrollToItem(index)
-                                            }
-                                        },
-                                        onToolApproval = { toolCallId, approved, reason ->
-                                            vm.handleToolApproval(toolCallId, approved, reason)
-                                        },
-                                        onToolAnswer = { toolCallId, answer ->
-                                            vm.handleToolAnswer(toolCallId, answer)
-                                        },
-                                        onRerunPlanStep = { prompt ->
-                                            vm.handleMessageSend(listOf(UIMessagePart.Text(prompt)))
-                                        },
-                                        onToggleFavorite = { node ->
-                                            vm.toggleMessageFavorite(node)
-                                        },
-                                        onConversationSystemPromptChange = { newPrompt ->
-                                            vm.updateConversation(conversation.copy(customSystemPrompt = newPrompt))
-                                            vm.saveConversationAsync()
-                                        },
-                                    )
+            ChatList(
+                innerPadding = innerPadding,
+                conversation = conversation,
+                state = chatListState,
+                loading = loadingJob != null,
+                processingStatus = processingStatus,
+                previewMode = previewMode,
+                settings = setting,
+                hazeState = hazeState,
+                errors = errors,
+                onDismissError = onDismissError,
+                onClearAllErrors = onClearAllErrors,
+                onRegenerate = {
+                    vm.regenerateAtMessage(it)
+                },
+                onEdit = {
+                    inputState.editingMessage = it.id
+                    inputState.setContents(it.parts)
+                },
+                onForkMessage = {
+                    scope.launch {
+                        val fork = vm.forkMessage(message = it)
+                        navigateToChatPage(navController, chatId = fork.id)
                     }
-                    PlanWorkbenchSidePanel(
-                        activePlan = activePlan,
-                        hazeState = hazeState,
-                        modifier = Modifier
-                            .weight(0.42f)
-                            .padding(start = 4.dp, end = 8.dp, top = 8.dp, bottom = 8.dp),
-                    )
-                }
-            } else {
-                            ChatList(
-                                innerPadding = innerPadding,
-                                conversation = conversation,
-                                state = chatListState,
-                                loading = loadingJob != null,
-                                processingStatus = processingStatus,
-                                previewMode = previewMode,
-                                settings = setting,
-                                hazeState = hazeState,
-                                errors = errors,
-                                onDismissError = onDismissError,
-                                onClearAllErrors = onClearAllErrors,
-                                onRegenerate = {
-                                    vm.regenerateAtMessage(it)
-                                },
-                                onEdit = {
-                                    inputState.editingMessage = it.id
-                                    inputState.setContents(it.parts)
-                                },
-                                onForkMessage = {
-                                    scope.launch {
-                                        val fork = vm.forkMessage(message = it)
-                                        navigateToChatPage(navController, chatId = fork.id)
-                                    }
-                                },
-                                onDelete = {
-                                    if (loadingJob != null) {
-                                        vm.showDeleteBlockedWhileGeneratingError()
-                                    } else {
-                                        vm.deleteMessage(it)
-                                    }
-                                },
-                                onUpdateMessage = { newNode ->
-                                    vm.updateConversation(
-                                        conversation.copy(
-                                            messageNodes = conversation.messageNodes.map { node ->
-                                                if (node.id == newNode.id) {
-                                                    newNode
-                                                } else {
-                                                    node
-                                                }
-                                            }
-                                        ))
-                                    vm.saveConversationAsync()
-                                },
-                                onClickSuggestion = { suggestion ->
-                                    inputState.editingMessage = null
-                                    inputState.setMessageText(suggestion)
-                                },
-                                onTranslate = { message, locale ->
-                                    vm.translateMessage(message, locale)
-                                },
-                                onClearTranslation = { message ->
-                                    vm.clearTranslationField(message.id)
-                                },
-                                onJumpToMessage = { index ->
-                                    previewMode = false
-                                    scope.launch {
-                                        chatListState.requestScrollToItem(index)
-                                    }
-                                },
-                                onToolApproval = { toolCallId, approved, reason ->
-                                    vm.handleToolApproval(toolCallId, approved, reason)
-                                },
-                                onToolAnswer = { toolCallId, answer ->
-                                    vm.handleToolAnswer(toolCallId, answer)
-                                },
-                                onRerunPlanStep = { prompt ->
-                                    vm.handleMessageSend(listOf(UIMessagePart.Text(prompt)))
-                                },
-                                onToggleFavorite = { node ->
-                                    vm.toggleMessageFavorite(node)
-                                },
-                                onConversationSystemPromptChange = { newPrompt ->
-                                    vm.updateConversation(conversation.copy(customSystemPrompt = newPrompt))
-                                    vm.saveConversationAsync()
-                                },
-                            )
-            }
+                },
+                onDelete = {
+                    if (loadingJob != null) {
+                        vm.showDeleteBlockedWhileGeneratingError()
+                    } else {
+                        vm.deleteMessage(it)
+                    }
+                },
+                onUpdateMessage = { newNode ->
+                    vm.updateConversation(
+                        conversation.copy(
+                            messageNodes = conversation.messageNodes.map { node ->
+                                if (node.id == newNode.id) {
+                                    newNode
+                                } else {
+                                    node
+                                }
+                            }
+                        ))
+                    vm.saveConversationAsync()
+                },
+                onClickSuggestion = { suggestion ->
+                    inputState.editingMessage = null
+                    inputState.setMessageText(suggestion)
+                },
+                onTranslate = { message, locale ->
+                    vm.translateMessage(message, locale)
+                },
+                onClearTranslation = { message ->
+                    vm.clearTranslationField(message.id)
+                },
+                onJumpToMessage = { index ->
+                    previewMode = false
+                    scope.launch {
+                        chatListState.requestScrollToItem(index)
+                    }
+                },
+                onToolApproval = { toolCallId, approved, reason ->
+                    vm.handleToolApproval(toolCallId, approved, reason)
+                },
+                onToolAnswer = { toolCallId, answer ->
+                    vm.handleToolAnswer(toolCallId, answer)
+                },
+                onRerunPlanStep = { prompt ->
+                    vm.handleMessageSend(listOf(UIMessagePart.Text(prompt)))
+                },
+                onToggleFavorite = { node ->
+                    vm.toggleMessageFavorite(node)
+                },
+                onConversationSystemPromptChange = { newPrompt ->
+                    vm.updateConversation(conversation.copy(customSystemPrompt = newPrompt))
+                    vm.saveConversationAsync()
+                },
+            )
         }
 
         if (showFilesSheet) {
@@ -755,9 +667,6 @@ private fun TopBar(
     drawerState: DrawerState,
     bigScreen: Boolean,
     previewMode: Boolean,
-    hasActivePlan: Boolean,
-    workbenchOpen: Boolean,
-    onToggleWorkbench: () -> Unit,
     onClickMenu: () -> Unit,
     onNewChat: () -> Unit,
     onUpdateTitle: (String) -> Unit
@@ -818,18 +727,6 @@ private fun TopBar(
             }
         },
         actions = {
-            IconButton(
-                onClick = onToggleWorkbench,
-                enabled = hasActivePlan || workbenchOpen,
-            ) {
-                Icon(
-                    imageVector = HugeIcons.Task01,
-                    contentDescription = "Plan Workbench",
-                    tint = if (workbenchOpen) MaterialTheme.colorScheme.primary
-                    else LocalContentColor.current,
-                )
-            }
-
             IconButton(
                 onClick = {
                     onClickMenu()

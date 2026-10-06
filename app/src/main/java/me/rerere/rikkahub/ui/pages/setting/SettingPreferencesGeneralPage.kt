@@ -188,7 +188,40 @@ fun SettingPreferencesGeneralPage(vm: SettingVM = koinViewModel()) {
                                 )
                             },
                         )
+                        item(
+                            headlineContent = { Text(stringResource(R.string.setting_display_page_glass_intensity)) },
+                            supportingContent = {
+                                Column {
+                                    Text(stringResource(R.string.setting_display_page_glass_intensity_desc))
+                                    Slider(
+                                        value = displaySetting.glassIntensity,
+                                        onValueChange = {
+                                            updateDisplaySetting(displaySetting.copy(glassIntensity = it))
+                                        },
+                                        valueRange = 0.2f..1.0f,
+                                        steps = 7,
+                                    )
+                                }
+                            },
+                        )
                     }
+                    item(
+                        headlineContent = { Text(stringResource(R.string.setting_display_page_performance_mode)) },
+                        supportingContent = { Text(stringResource(R.string.setting_display_page_performance_mode_desc)) },
+                        trailingContent = {
+                            Switch(
+                                checked = displaySetting.performanceMode,
+                                onCheckedChange = {
+                                    updateDisplaySetting(
+                                        displaySetting.copy(
+                                            performanceMode = it,
+                                            enableBlurEffect = if (it) false else displaySetting.enableBlurEffect,
+                                        )
+                                    )
+                                }
+                            )
+                        },
+                    )
                     item(
                         headlineContent = { Text(stringResource(R.string.setting_display_page_enable_message_generation_haptic_effect_title)) },
                         supportingContent = { Text(stringResource(R.string.setting_display_page_enable_message_generation_haptic_effect_desc)) },

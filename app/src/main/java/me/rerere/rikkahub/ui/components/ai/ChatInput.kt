@@ -156,6 +156,8 @@ fun ChatInput(
     val toaster = LocalToaster.current
     val assistant = settings.getCurrentAssistant()
     val hazeTintColor = MaterialTheme.colorScheme.surfaceContainerLow
+    val glassEnabled = glassEnabled && !settings.displaySetting.performanceMode
+    val glassAlpha = settings.displaySetting.glassIntensity
     val inputHazeStyle = HazeBlurStyle.Material3 {
         blurRadius(12.dp)
     }
@@ -243,7 +245,7 @@ fun ChatInput(
                     .fillMaxWidth()
                     .clip(containerShape)
                     .then(
-                        if (settings.displaySetting.enableBlurEffect) {
+                        if (glassEnabled) {
                             when (settings.displaySetting.backgroundEffectType) {
                                 BackgroundEffectType.BLUR -> Modifier.hazeBlur(
                                     input = HazeInput.Sources(hazeState),
@@ -253,12 +255,12 @@ fun ChatInput(
                                     input = HazeInput.Sources(hazeState),
                                     style = GlassStyle.Material3(
                                         containerColor = hazeTintColor,
-                                        tint = hazeTintColor.copy(alpha = 0.3f),
+                                        tint = hazeTintColor.copy(alpha = glassAlpha * 0.6f),
                                     ) {
                                         // Keep background text from competing with the input text.
                                         optics(GlassDefaults.optics.copy(
-                                            blurRadius = OpticalSizeValue.Fixed(16.dp),
-                                            depth = OpticalSizeValue.Fixed(0.5f),
+                                            blurRadius = OpticalSizeValue.Fixed((8.dp.value + glassAlpha * 12f).dp),
+                                            depth = OpticalSizeValue.Fixed(glassAlpha),
                                         ))
                                         shape(containerShape)
                                     },
@@ -269,7 +271,7 @@ fun ChatInput(
                 shape = containerShape,
                 tonalElevation = 0.dp,
                 border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)),
-                color = if (settings.displaySetting.enableBlurEffect) Color.Transparent else hazeTintColor,
+                color = if (glassEnabled) Color.Transparent else hazeTintColor,
             ) {
                 Column(
                     modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),

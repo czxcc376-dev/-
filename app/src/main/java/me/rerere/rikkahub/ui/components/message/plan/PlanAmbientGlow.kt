@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.CornerRadius
@@ -20,6 +21,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import me.rerere.rikkahub.data.datastore.Settings
+import me.rerere.rikkahub.ui.context.LocalSettings
 
 /**
  * 计划卡片的「氛围光效」。
@@ -41,16 +44,21 @@ fun PlanAmbientGlow(
     strokeWidth: Dp = 1.5.dp,
     content: @Composable BoxScope.() -> Unit,
 ) {
+    val isPerformanceMode = LocalSettings.current.displaySetting.performanceMode
     val transition = rememberInfiniteTransition(label = "planGlow")
-    val breath by transition.animateFloat(
-        initialValue = if (active) 0.55f else 0.22f,
-        targetValue = if (active) 1f else 0.38f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = if (active) 2600 else 5200, easing = FastOutSlowInEasing),
-            repeatMode = RepeatMode.Reverse,
-        ),
-        label = "breath",
-    )
+    val breath by if (isPerformanceMode) {
+        remember(active) { androidx.compose.runtime.mutableStateOf(if (active) 0.8f else 0.3f) }
+    } else {
+        transition.animateFloat(
+            initialValue = if (active) 0.55f else 0.22f,
+            targetValue = if (active) 1f else 0.38f,
+            animationSpec = infiniteRepeatable(
+                animation = tween(durationMillis = if (active) 2600 else 5200, easing = FastOutSlowInEasing),
+                repeatMode = RepeatMode.Reverse,
+            ),
+            label = "breath",
+        )
+    }
 
     val palette = if (colors.isEmpty()) {
         listOf(Color(0xFF7C8CFF), Color(0xFF9D5CFF), Color(0xFF39D6C8), Color(0xFF7C8CFF))

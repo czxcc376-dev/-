@@ -91,17 +91,17 @@ fun Conversation.findActivePlan(): ActivePlan? {
         for (tool in tools.asReversed()) {
             val request = parsePlanRequest(tool.inputAsJson())
             val state = tool.approvalState
+            val snapshotView = tool.output
+                .filterIsInstance<UIMessagePart.Text>()
+                .firstOrNull()
+                ?.text
+                ?.let { decodePlanSnapshot(it) }
+                ?.toView()
             val view = when {
+                snapshotView != null -> snapshotView
                 state is ToolApprovalState.Answered ->
                     buildPlanView(request, parsePlanUserAnswer(state.answer))
-
-                else -> tool.output
-                    .filterIsInstance<UIMessagePart.Text>()
-                    .firstOrNull()
-                    ?.text
-                    ?.let { decodePlanSnapshot(it) }
-                    ?.toView()
-                    ?: buildPlanView(request, null)
+                else -> buildPlanView(request, null)
             }
             if (view.operation == InteractivePlanOperation.CANCEL) return null
 

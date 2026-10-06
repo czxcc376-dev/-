@@ -1378,6 +1378,10 @@
   <string name="setting_display_page_background_effect_type">背景效果類型</string>
   <string name="setting_display_page_background_effect_blur">模糊</string>
   <string name="setting_display_page_background_effect_glass">玻璃</string>
+  <string name="setting_display_page_glass_intensity">玻璃強度</string>
+  <string name="setting_display_page_glass_intensity_desc">調整玻璃效果的透明度</string>
+  <string name="setting_display_page_performance_mode">效能模式</string>
+  <string name="setting_display_page_performance_mode_desc">關閉背景效果以加快渲染</string>
   <string name="safe_mode_enter_app">進入應用程式</string>
   <string name="setting_tts_page_temperature">溫度</string>
   <string name="setting_tts_page_temperature_description">控制語音的隨機性（0.0 - 1.0，數值越高越有表現力）</string>
@@ -1472,12 +1476,4 @@
   <string name="setting_enhanced_build_apk_desc">apktool 打包：將解包目錄重新打包為 APK</string>
   <string name="setting_enhanced_repack_apk">重打包 APK（換 DEX）</string>
   <string name="setting_enhanced_repack_apk_desc">純 Java：smali 回編譯為 DEX 並替換進原 APK，資源不動（未簽名）</string>
-  <string name="plan_workbench_title">計畫工作台</string>
-  <string name="plan_workbench_empty">暫無活躍計畫</string>
-  <string name="plan_workbench_empty_desc">發起一個多步任務後，這裡會顯示時間軸與依賴關係。</string>
-  <string name="plan_workbench_timeline">時間軸</string>
-  <string name="plan_workbench_graph">依賴圖</string>
-  <string name="plan_workbench_owner">負責人</string>
-  <string name="plan_workbench_waiting">等待</string>
-  <string name="plan_workbench_no_steps">暫無步驟</string>
 </resources>

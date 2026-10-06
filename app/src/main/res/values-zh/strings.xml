@@ -1385,6 +1385,10 @@ mDNS 地址：使用 .local 主机名，同一网络中的其他设备可通过�
   <string name="setting_display_page_background_effect_type">背景效果类型</string>
   <string name="setting_display_page_background_effect_blur">模糊</string>
   <string name="setting_display_page_background_effect_glass">玻璃</string>
+  <string name="setting_display_page_glass_intensity">玻璃强度</string>
+  <string name="setting_display_page_glass_intensity_desc">调整玻璃效果的透明度</string>
+  <string name="setting_display_page_performance_mode">性能模式</string>
+  <string name="setting_display_page_performance_mode_desc">关闭背景效果以加快渲染</string>
   <string name="safe_mode_enter_app">进入应用</string>
   <string name="theme_name_claude">Claude</string>
   <string name="workspace_terminal_tab">终端 %1$d</string>
@@ -1475,12 +1479,4 @@ mDNS 地址：使用 .local 主机名，同一网络中的其他设备可通过�
   <string name="setting_enhanced_build_apk_desc">apktool 打包：把解包目录重新打包为 APK</string>
   <string name="setting_enhanced_repack_apk">重打包 APK（换 DEX）</string>
   <string name="setting_enhanced_repack_apk_desc">纯 Java：smali 回编译为 DEX 并替换进原 APK，资源不动（未签名）</string>
-  <string name="plan_workbench_title">计划工作台</string>
-  <string name="plan_workbench_empty">暂无活跃计划</string>
-  <string name="plan_workbench_empty_desc">发起一个多步任务后，这里会显示时间轴与依赖关系。</string>
-  <string name="plan_workbench_timeline">时间轴</string>
-  <string name="plan_workbench_graph">依赖图</string>
-  <string name="plan_workbench_owner">负责人</string>
-  <string name="plan_workbench_waiting">等待</string>
-  <string name="plan_workbench_no_steps">暂无步骤</string>
 </resources>

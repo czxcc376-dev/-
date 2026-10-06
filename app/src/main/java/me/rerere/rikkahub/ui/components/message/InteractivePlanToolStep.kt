@@ -100,21 +100,27 @@ fun ChainOfThoughtScope.InteractivePlanToolStep(
     var expanded by remember(tool.toolCallId) { mutableStateOf(false) }
 
     // 只读结果视图，优先级：
-    // 1) 用户已回答 -> 用「原始入参 + 用户答案」重建（修复确认后无法展开的 bug）；
-    // 2) 工具已执行（complete / cancel 收尾）-> 用工具输出里的计划快照重建；
+    // 1) 工具已执行且有输出快照 -> 用最新快照（包含模型更新后的最新状态）；
+    // 2) 用户已回答 -> 用「原始入参 + 用户答案」重建；
     // 3) 否则为 null，渲染可编辑的计划卡。
+    // 关键修复：工具输出快照优先于用户答案，因为模型在用户确认后
+    // 可能已经通过 create_or_update 更新了步骤状态，快照才是最新数据。
     val resultView = remember(tool.toolCallId, tool.approvalState, tool.output, arguments) {
         val state = tool.approvalState
+        val snapshotView = tool.output
+            .filterIsInstance<UIMessagePart.Text>()
+            .firstOrNull()
+            ?.text
+            ?.let { decodePlanSnapshot(it) }
+            ?.toView()
+
         when {
+            snapshotView != null -> snapshotView
+
             state is ToolApprovalState.Answered ->
                 buildPlanView(initialRequest, parsePlanUserAnswer(state.answer))
 
-            else -> tool.output
-                .filterIsInstance<UIMessagePart.Text>()
-                .firstOrNull()
-                ?.text
-                ?.let { decodePlanSnapshot(it) }
-                ?.toView()
+            else -> null
         }
     }
 
