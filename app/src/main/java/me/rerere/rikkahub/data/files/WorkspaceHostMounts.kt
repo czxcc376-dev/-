@@ -18,13 +18,12 @@ fun baseWorkspaceBindMounts(context: Context): List<WorkspaceBindMount> = buildL
     add(WorkspaceBindMount(File(context.filesDir, FileFolders.TOOL_OUTPUTS).apply { mkdirs() }, "/tool_outputs"))
     add(WorkspaceBindMount(File(context.filesDir, FileFolders.UPLOAD).apply { mkdirs() }, "/upload"))
 
-    // 宿主目录直接挂载：共享存储 + sdcard 别名
-    val hostRoots = listOfNotNull(
+    // 宿主根目录直接挂载到 rootfs 的 /sdcard（可读写宿主共享存储根目录）
+    val hostRoot = listOfNotNull(
         File("/storage/emulated/0").takeIf { it.isDirectory },
         File("/sdcard").takeIf { it.isDirectory },
-    ).distinctBy { it.canonicalPath }
-    hostRoots.forEachIndexed { index, host ->
-        val target = if (index == 0) "/host" else "/host_sdcard"
-        add(WorkspaceBindMount(host, target))
+    ).firstOrNull()
+    if (hostRoot != null) {
+        add(WorkspaceBindMount(hostRoot, "/sdcard"))
     }
 }

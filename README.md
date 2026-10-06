@@ -34,12 +34,12 @@ ClBI 是一个原生 Android LLM 客户端，在 RikkaHub 的基础上做了大�
 
 ### 宿主目录挂载
 
-- 工作区（PRoot）直接挂载宿主机共享存储，AI 工具与终端可直接读写宿主目录：
-  - `/storage/emulated/0` → `/host`
-  - `/sdcard` → `/host_sdcard`
+- 工作区（PRoot）直接把宿主共享存储根目录挂载到 `/sdcard`，AI 工具与终端可直接读写宿主文件：
+  - `/storage/emulated/0`（即 `/sdcard`）→ `/sdcard`
 
 > [!WARNING]
-> 直接挂载宿主目录会暴露宿主机真实文件，属于高权限挂载，仅供本增强分支使用。
+> 直接挂载宿主目录会暴露宿主机真实文件，属于高权限挂载。写入需要授予
+> 「所有文件访问权限」（MANAGE_EXTERNAL_STORAGE），仅供本增强分支使用。
 
 ### 增强服务
 
