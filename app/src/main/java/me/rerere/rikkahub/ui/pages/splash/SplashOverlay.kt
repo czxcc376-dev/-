@@ -21,6 +21,8 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -65,19 +67,23 @@ fun SplashOverlay(
 
     val reveal = remember { Animatable(0f) }
     val fadeOut = remember { Animatable(1f) }
+    // 是否被用户点击跳过（点击后立即收尾，不等完整时长）。
+    var skipped by remember { mutableStateOf(false) }
+    var finished by remember { mutableStateOf(false) }
 
+    // 单一动画流程，避免多个 effect 并发操作同一个 Animatable 互相取消。
     LaunchedEffect(Unit) {
         reveal.animateTo(1f, tween(durationMillis = 620, easing = LinearOutSlowInEasing))
-        delay(260)
-        fadeOut.animateTo(0f, tween(durationMillis = 320, easing = FastOutSlowInEasing))
-        onFinished()
-    }
-
-    // 点击任意位置可立即跳过启动动画，不让用户等。
-    val skip = remember { mutableStateOf(false) }
-    LaunchedEffect(skip.value) {
-        if (skip.value) {
-            fadeOut.animateTo(0f, tween(durationMillis = 180, easing = FastOutSlowInEasing))
+        if (!skipped) delay(260)
+        fadeOut.animateTo(
+            targetValue = 0f,
+            animationSpec = tween(
+                durationMillis = if (skipped) 160 else 320,
+                easing = FastOutSlowInEasing,
+            ),
+        )
+        if (!finished) {
+            finished = true
             onFinished()
         }
     }
@@ -106,7 +112,7 @@ fun SplashOverlay(
             .fillMaxSize()
             .alpha(fadeOut.value)
             .background(Brush.verticalGradient(listOf(bgTop, bgBottom)))
-            .pointerInput(Unit) { detectTapGestures { skip.value = true } },
+            .pointerInput(Unit) { detectTapGestures { skipped = true } },
         contentAlignment = Alignment.Center,
     ) {
         // 同心光环：外扩 + 淡出，脉动节奏
