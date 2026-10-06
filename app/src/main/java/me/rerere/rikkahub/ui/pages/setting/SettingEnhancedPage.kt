@@ -1,6 +1,10 @@
 package me.rerere.rikkahub.ui.pages.setting
 
 import android.content.Intent
+import android.net.Uri
+import android.os.Build
+import android.os.Environment
+import android.provider.Settings
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
@@ -272,6 +276,8 @@ fun SettingEnhancedPage(
                 onCleanSessions = { cleanAnalysisSessions(notify = true) },
             )
 
+            StorageAccessCard()
+
             ToolWorkbench(
                 apkPath = apkPath,
                 analyzing = analyzing,
@@ -283,6 +289,48 @@ fun SettingEnhancedPage(
                 onCreateSession = ::createAnalysisConversation,
             )
         }
+    }
+}
+
+@Composable
+private fun StorageAccessCard() {
+    val context = LocalContext.current
+    val toaster = LocalToaster.current
+
+    fun isGranted(): Boolean =
+        Build.VERSION.SDK_INT < 30 || Environment.isExternalStorageManager()
+
+    fun open() {
+        if (isGranted()) {
+            toaster.show("已拥有所有文件访问权限", type = ToastType.Success)
+            return
+        }
+        try {
+            val intent = if (Build.VERSION.SDK_INT >= 30) {
+                Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION)
+                    .setData(Uri.parse("package:" + context.packageName))
+            } else {
+                Intent(Settings.ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION)
+            }
+            context.startActivity(intent)
+        } catch (_: Exception) {
+            runCatching {
+                context.startActivity(Intent(Settings.ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION))
+            }
+        }
+    }
+
+    CardGroup(title = { Text("宿主目录写入授权") }) {
+        item(
+            leadingContent = { Icon(HugeIcons.Folder01, null) },
+            headlineContent = { Text(if (isGranted()) "已授权所有文件访问" else "授权所有文件访问（一键）") },
+            supportingContent = {
+                Text("用于 AI 在工作区 /sdcard 直接读写宿主共享存储。点击自动跳转系统授权页。")
+            },
+            trailingContent = {
+                Button(onClick = ::open) { Text("去授权") }
+            },
+        )
     }
 }
 
