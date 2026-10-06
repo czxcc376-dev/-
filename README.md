@@ -1,102 +1,68 @@
 <div align="center">
-  <img src="docs/icon.png" alt="App Icon" width="100" />
-  <h1>RikkaHub</h1>
-
-[![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/rikkahub/rikkahub)
-[![Ask DeepWiki](https://img.shields.io/badge/zread.ai-blue?style=flat&logo=readthedocs)](https://zread.ai/rikkahub/rikkahub)
-
-A native Android LLM chat client that supports switching between different providers for
-conversations 🤖💬
-
-Click to join our Discord server 👉 [【RikkaHub】](https://discord.gg/9weBqxe5c4)
-
-[简体中文](README_ZH_CN.md) | [繁體中文](README_ZH_TW.md) | English
+  <h1>ClBI</h1>
+  <p>面向开发 · 逆向 · 编程 · 聊天的 AI 助手</p>
+  <p>一个基于 <a href="https://github.com/rikkahub/rikkahub">RikkaHub</a> 的增强分支</p>
 </div>
 
-<div align="center">
-  <img src="docs/img/chat.png" alt="Chat Interface" width="150" />
-  <img src="docs/img/desktop.png" alt="Models Picker" width="450" />
-</div>
+## 关于
 
-## 🚀 Download
-
-🔗 [Download from Website](https://rikka-ai.com/download) (Recommended)
-
-🔗 [Download from Google Play](https://play.google.com/store/apps/details?id=me.rerere.rikkahub)
+ClBI 是一个原生 Android LLM 客户端，在 RikkaHub 的基础上做了大量自研增强，专注
+开发、逆向、编程与聊天场景。内置全离线逆向工具链，不需要联网即可完成二进制 / APK / DEX / SO
+的静态分析。
 
 > [!WARNING]
-> There are many forked versions of RikkaHub. Issues with forks are unrelated to RikkaHub, so please use forks with caution to avoid privacy leaks or excessive permission requests.
+> 本项目是 RikkaHub 的分支（fork）。请仅在可信来源获取 APK，避免隐私泄露或过度权限请求。
 
-## 💖 Sponsors
+## 增强功能
 
-|                                                                            Sponsor                                                                             | Description                                                                                                                                                                                                                                                                                                                                             |
-|:--------------------------------------------------------------------------------------------------------------------------------------------------------------:|:--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-|                                    <img src="docs/sponsors/aihubmix.png" alt="Aihubmix" width="50" /><br /><b>Aihubmix</b>                                     | Thanks to <a href="https://aihubmix.com?aff=pG7r">aihubmix.com</a> for their financial support. We recommend using aihubmix as a one-stop shop for mainstream models worldwide. (OpenAI, Claude, Google Gemini, DeepSeek, Qwen, and hundreds more).                                                                                                     |
-| <img src="docs/img/api-mart.png" alt="APIMart" width="50" /><br /><b><a href="https://go.apimart.ai/gh-rikkahub">APIMart</a></b> | Thanks to APIMart for sponsoring this project! APIMart is a low-cost API platform for AI image & video generation — GPT-Image-2 from $0.006/image, 160+ images per dollar. One async API covers both image and video: submit a task, get an ID, fetch results via polling or callback. Batch tens of thousands of images without timeouts, switch models without changing code. Pay-as-you-go with no monthly fee — <a href="https://go.apimart.ai/gh-rikkahub">sign up here</a> to get started. |
-|                    <img src="docs/sponsors/suixiang.jpg" alt="随想AI中转" width="50" /><br /><b><a href="https://sui-xiang.com">随想AI中转</a></b>                     | 感谢<a href="https://sui-xiang.com">随想AI中转</a>对本项目的赞助！随想AI中转 是一家可靠高效的 API 中继服务提供商，提供 Claude、Codex、Gemini 等的中继服务。注重隐私的中转站·无数据倒卖·无模型掺水，隐私，透明，极速售后。新账户注册每日签到就送 0.5 元测试额度，充值额度 1:1，无需订阅，按量付费。多线路冗余、跨区域容灾、自动故障切换，长链路 SSE 不中断。99.9% 可用性，关键调用从不掉队。                                                                                                               |
-|                   <img src="docs/sponsors/ztest.png" alt="真测 ztest.ai" width="50" /><br /><b><a href="https://ztest.ai">真测 ztest.ai</a></b>                    | 感谢<a href="https://ztest.ai">真测 ztest.ai</a>对本项目的赞助！真测 ztest.ai 是一个 AI 中转站模型检测平台，检测结果数据全公开，23 项探针覆盖协议、身份、能力、内容完整性、安全性、性能六大维度，交叉印证识别伪造与降级。作为独立第三方验证平台，实时监测 AI 中转站的模型真实性、响应质量与服务可用性。                                                                                                                                                                      |
-| <img src="docs/sponsors/maru.png" alt="MaruCode" width="50" /><br /><b><a href="https://api.muteki.site/register?aff=Rikkahub&promo=Rikkahub">MaruCode</a></b> | <b><a href="https://api.muteki.site/register?aff=Rikkahub&promo=Rikkahub">MaruCode</a></b> 是一家偶尔做做慈善的小破站 API，自营号池，主要提供 Codex、Claude Code、GPT Image 等主流模型，支持 Websocket 协议，明码标价(Codex 0.25x, CC 1.5x)，透明汇率(1:1)，<a href="https://api.muteki.site/register?aff=Rikkahub&promo=Rikkahub">新用户注册送 2 刀</a>。<a href="https://images-2.muteki.site">生图工作台🖼️</a> |
+### 逆向工具（全离线自研）
 
-## ✨ Features
+- **radare2 内置引擎**：离线内置 r2 / rabin2 / rasm2 / rahash2 / radiff2 / rafind2 / rax2，
+  支持文件信息、头/段/节、导入导出符号、入口点、依赖库、字符串、类、哈希、反汇编、函数、
+  交叉引用、字节/字符串搜索、汇编/反汇编、二进制差异。
+- **APK / DEX 工具箱**：解包、清单解析、DEX 信息、字符串、类、反汇编 smali、反编译 Java、
+  组装 DEX、纯 Java 重打包 APK。
+- **逆向工具箱**：base64 / hex / URL / HTML 编解码、MD5 / SHA / HMAC / CRC32、AES 加解密、
+  JWT 解析、指标提取（IPv4 / IPv6 / 域名 / 邮箱 / 密钥）、XOR 爆破、熵、十六进制转储、
+  端序转换、时间戳、UUID 等。
+- **自研扩展**：DEX 字符串偏移定位与原地补丁、ELF 符号解析、SO 字符串提取、加固/壳检测。
 
-- 🎨 Material You Design and 🌙 Dark mode
-- 📦 Workspace: a proot-based Linux agent environment
-- 🔄 Multiple AI Provider Support: custom API / URL / models (all OpenAI, Google, Anthropic compatible api)
-- 🖼️ Multimodal input support (Image, Text Documentation, PDF, Docx)
-- 🖥️ Web access for multi-platform use
-- 🛠️ MCP support
-- 📝 Markdown Rendering (with code highlighting, Latex formulas, tables, Mermaid)
-- 🪾 Message Branching
-- 🔍 Search capabilities (Exa, Tavily, Zhipu, LinkUp, Brave, Perplexity, etc.)
-- 🧩 Prompt variables (model name, time, etc.)
-- 🤳 QR code export and import for providers
-- 🤖 Agent customization
-- 🧠 ChatGPT-like memory feature
-- 📝 AI Translation
-- 🌐 Custom HTTP request headers and request bodies
-- 💌 Silly Tavern character card import
+### 计划与提问
 
-## ✨ Development
+- **交互式计划**：多步任务计划 + 向用户提问，支持子步骤、依赖、负责人与进度。
+- **计划 HUD**：对话输入框上方折叠显示当前计划步骤与进度，无计划时自动隐藏。
 
-> [!IMPORTANT]
-> This project does not accept pull requests (PRs).
+### 外部目录挂载
 
-This project is developed using [Android Studio](https://developer.android.com/studio).
+- 通过系统文件选择器（SAF）授权外部目录，镜像到应用私有目录并挂载到 AI 工作区 `/mnt/<名称>`，
+  AI 工具与终端可直接读写，支持双向同步与卸载。
 
-Technology stack documentation:
+### 增强服务
 
-- [Kotlin](https://kotlinlang.org/) (Development language)
-- [Koin](https://insert-koin.io/) (Dependency Injection)
-- [Jetpack Compose](https://developer.android.com/jetpack/compose) (UI framework)
-- [DataStore](https://developer.android.com/topic/libraries/architecture/datastore) (Preference data
-  storage)
-- [Room](https://developer.android.com/training/data-storage/room) (Database)
-- [Coil](https://coil-kt.github.io/coil/) (Image loading)
-- [Material You](https://m3.material.io/) (UI design)
-- [Navigation 3](https://developer.android.com/guide/navigation/navigation-3) (Navigation)
-- [Okhttp](https://square.github.io/okhttp/) (HTTP client)
-- [kotlinx.serialization](https://github.com/Kotlin/kotlinx.serialization) (JSON serialization)
+- 设置页提供「增强服务」功能开关中心，统一管理本地工具、工作会话与外部目录挂载。
 
-> [!TIP]
-> You need a `google-services.json` file at `app` folder to build the app.
+## 其他功能
 
-## 💰 Donate
+- Material You 设计 + 深色模式
+- 多 AI 提供商（OpenAI / Google / Anthropic 兼容 API）
+- 多模态输入（图片、文本、PDF、Docx）
+- 基于 proot 的 Linux Agent 工作区
+- Web 访问、MCP 支持
+- Markdown 渲染、消息分支、搜索能力
+- Prompt 变量、Agent 定制、记忆功能、AI 翻译
+- 自定义 HTTP 请求头与请求体
+- 角色卡导入
 
-* [Patreon](https://patreon.com/rikkahub)
-* [爱发电](https://afdian.com/a/reovo)
+## 构建
 
-## ⭐ Star History
+本项目使用 GitHub Actions 云端构建 Debug APK，产物发布到 Releases 的 `debug` tag。
 
-If you like this project, please give it a star ⭐
+本地构建需要：
 
-<a href="https://www.star-history.com/?type=date&repos=re-ovo%2Frikkahub">
- <picture>
-   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/chart?repos=re-ovo/rikkahub&type=date&theme=dark&legend=top-left&sealed_token=qSytWeq7LkzQQViTjK0MYlvvA_qkfuwjOxOqgbRpLUZZwok5rO6LXhpVL7Mq-q3o89BfKpzE7g66BCy18H6eiqTsD8czD0J-HejLqmHy-npcvCTHu11wZw" />
-   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/chart?repos=re-ovo/rikkahub&type=date&legend=top-left&sealed_token=qSytWeq7LkzQQViTjK0MYlvvA_qkfuwjOxOqgbRpLUZZwok5rO6LXhpVL7Mq-q3o89BfKpzE7g66BCy18H6eiqTsD8czD0J-HejLqmHy-npcvCTHu11wZw" />
-   <img alt="Star History Chart" src="https://api.star-history.com/chart?repos=re-ovo/rikkahub&type=date&legend=top-left&sealed_token=qSytWeq7LkzQQViTjK0MYlvvA_qkfuwjOxOqgbRpLUZZwok5rO6LXhpVL7Mq-q3o89BfKpzE7g66BCy18H6eiqTsD8czD0J-HejLqmHy-npcvCTHu11wZw" />
- </picture>
-</a>
+- Android Studio
+- `app/google-services.json`（缺失时 CI 会生成 dummy 配置）
 
-## 📄 License
+## 许可证
 
-This project is licensed under the [GNU Affero General Public License v3.0](LICENSE) (AGPL-3.0).
+本项目基于 [RikkaHub](https://github.com/rikkahub/rikkahub)，沿用
+[GNU Affero General Public License v3.0](LICENSE)（AGPL-3.0）。
