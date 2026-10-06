@@ -150,7 +150,7 @@ fun PlanHudPanel(
         append(view.totalCount)
         view.steps.forEach { append(it.status.name.first()) }
     }
-    var lastSignature by remember(activePlan.toolCallId) { mutableStateOf(signature) }
+    var lastSignature by remember(activePlan.toolCallId) { mutableStateOf("") }
 
     // 计划有推进 -> 自动展开一小会儿；等待用户处理 -> 保持展开；用户开始打字 -> 收起。
     LaunchedEffect(signature, activePlan.awaitingUser) {
@@ -183,7 +183,6 @@ fun PlanHudPanel(
                 activePlan = activePlan,
                 expanded = expanded,
                 onToggle = { expanded = !expanded },
-                onJumpToPlan = onJumpToPlan,
             )
 
             AnimatedVisibility(visible = expanded) {
@@ -202,7 +201,6 @@ private fun PlanHudHeader(
     activePlan: ActivePlan,
     expanded: Boolean,
     onToggle: () -> Unit,
-    onJumpToPlan: (Int) -> Unit,
 ) {
     val view = activePlan.view
     val progress = view.steps.weightedProgress()
