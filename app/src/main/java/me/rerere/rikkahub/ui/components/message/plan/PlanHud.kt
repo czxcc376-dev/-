@@ -59,6 +59,12 @@ import me.rerere.rikkahub.data.ai.tools.local.plan.toView
 import me.rerere.rikkahub.data.ai.tools.local.plan.unmetDependencies
 import me.rerere.rikkahub.data.ai.tools.local.plan.treeWeightedProgress
 import me.rerere.rikkahub.data.model.Conversation
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.Spring
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.foundation.layout.Box
+import androidx.compose.runtime.LaunchedEffect
 import me.rerere.rikkahub.data.model.MessageNode
 
 private const val PLAN_TOOL_NAME = "interactive_plan"
@@ -426,7 +432,33 @@ fun PlanStatusGlyph(
     val trackColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.35f)
     val activeColor = MaterialTheme.colorScheme.primary
 
-    when (status) {
+    // Bounce animation when status changes
+    val scale by animateFloatAsState(
+        targetValue = 1f,
+        animationSpec = spring(
+            dampingRatio = Spring.DampingRatioMediumBouncy,
+            stiffness = Spring.StiffnessMedium,
+        ),
+        label = "statusScale",
+    )
+    // Reset the animation each time status changes
+    var lastStatus by remember { mutableStateOf(status) }
+    LaunchedEffect(status) {
+        if (lastStatus != status) {
+            lastStatus = status
+        }
+    }
+    val bounceScale = if (lastStatus == status) scale else 1f
+
+    Box(
+        modifier = modifier
+            .size(size)
+            .graphicsLayer {
+                scaleX = bounceScale
+                scaleY = bounceScale
+            }
+    ) {
+        when (status) {
         PlanStepStatus.COMPLETED -> Icon(
             imageVector = HugeIcons.Tick02,
             contentDescription = null,
@@ -486,5 +518,6 @@ fun PlanStatusGlyph(
                 )
             }
         }
+    }
     }
 }

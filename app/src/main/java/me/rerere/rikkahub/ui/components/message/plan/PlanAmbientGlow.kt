@@ -22,6 +22,8 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import me.rerere.rikkahub.data.datastore.Settings
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.runtime.setValue
 import me.rerere.rikkahub.ui.context.LocalSettings
 
 /**
@@ -66,6 +68,19 @@ fun PlanAmbientGlow(
         colors
     }
 
+    // Specular sheen: a light band that sweeps across every ~10s
+    val sheenTransition = rememberInfiniteTransition(label = "planSheen")
+    val sheenOffset by sheenTransition.animateFloat(
+        initialValue = -0.3f,
+        targetValue = 1.3f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 10000, easing = androidx.compose.animation.core.LinearEasing),
+            repeatMode = RepeatMode.Restart,
+        ),
+        label = "sheenOffset",
+    )
+    val sheenAlpha = if (isPerformanceMode) 0f else 0.08f
+
     Box(modifier = modifier) {
         // 固定渐变描边：不旋转，只呼吸。
         Box(
@@ -90,6 +105,30 @@ fun PlanAmbientGlow(
                         cornerRadius = CornerRadius(radius, radius),
                         style = Stroke(width = stroke),
                     )
+                    // Dynamic specular sheen: a narrow light band sweeping left to right
+                    if (sheenAlpha > 0f) {
+                        val sheenX = size.width * sheenOffset
+                        val sheenWidth = size.width * 0.15f
+                        val sheenGradient = Brush.horizontalGradient(
+                            colors = listOf(
+                                Color.Transparent,
+                                Color.White.copy(alpha = sheenAlpha),
+                                Color.Transparent,
+                            ),
+                            startX = sheenX - sheenWidth / 2,
+                            endX = sheenX + sheenWidth / 2,
+                        )
+                        drawRoundRect(
+                            brush = sheenGradient,
+                            topLeft = Offset(inset, inset),
+                            size = Size(
+                                width = (size.width - stroke).coerceAtLeast(0f),
+                                height = (size.height - stroke).coerceAtLeast(0f),
+                            ),
+                            cornerRadius = CornerRadius(radius, radius),
+                            style = Stroke(width = stroke * 2f),
+                        )
+                    }
                 },
         )
         content()

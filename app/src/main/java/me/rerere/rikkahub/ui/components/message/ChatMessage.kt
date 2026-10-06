@@ -96,6 +96,9 @@ import me.rerere.rikkahub.utils.JsonInstant
 import me.rerere.rikkahub.utils.openUrl
 import me.rerere.rikkahub.utils.urlDecode
 import java.util.Locale
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.Spring
 import kotlin.time.Duration.Companion.milliseconds
 
 @Composable
@@ -133,6 +136,22 @@ fun ChatMessage(
     val navController = LocalNavController.current
     val context = LocalContext.current
     val colorScheme = MaterialTheme.colorScheme
+    val messageKey = remember(message.id) { message.id }
+    var hasAppeared by remember(messageKey) { mutableStateOf(false) }
+    LaunchedEffect(messageKey) {
+        hasAppeared = true
+    }
+
+    AnimatedVisibility(
+        visible = hasAppeared,
+        enter = scaleIn(
+            animationSpec = spring(
+                dampingRatio = Spring.DampingRatioMediumBouncy,
+                stiffness = Spring.StiffnessMedium,
+            ),
+            initialScale = 0.95f,
+        ) + fadeIn(animationSpec = spring(stiffness = Spring.StiffnessMedium)),
+    ) {
     Column(
         modifier = modifier.fillMaxWidth(),
         horizontalAlignment = if (message.role == MessageRole.USER) Alignment.End else Alignment.Start,
@@ -219,6 +238,7 @@ fun ChatMessage(
             ChatMessageNerdLine(message = message)
         }
 
+    }
     }
     if (showActionsSheet) {
         ChatMessageActionsSheet(
