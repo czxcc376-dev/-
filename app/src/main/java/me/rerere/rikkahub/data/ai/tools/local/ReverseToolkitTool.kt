@@ -329,7 +329,7 @@ private fun hexdump(data: String): Map<String, Any> {
         chunk.forEach { out.append("%02x ".format(it)) }
         repeat(width - chunk.size) { out.append("   ") }
         out.append(" |")
-        chunk.forEach { out.append(if (it in 32..126) it.toChar() else '.') }
+        chunk.forEach { out.append(if (it in 32..126) it.toInt().toChar() else '.') }
         out.append("|\n")
     }
     return mapOf("bytes" to bytes.size, "hexdump" to out.toString())

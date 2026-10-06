@@ -27,7 +27,7 @@ class ApkToolkitTool(val context: Context) {
  * - Manifest 信息：从二进制 AXML 提取字符串池，识别包名与权限
  * - DEX 信息：解析 DEX 头、统计类/方法/字段/字符串数量
  * - DEX 字符串/类名提取：供搜索加密密钥、URL、接口名等
- * - 原生库识别：列出 lib/*.so 并解析 ELF 架构/位宽/端序
+ * - 原生库识别：列出 lib/ 下的 .so 并解析 ELF 架构/位宽/端序
  * - 单条目解包：安全返回文本或 hex 摘要
  */
 fun buildApkToolkitTool(context: Context): Tool = Tool(

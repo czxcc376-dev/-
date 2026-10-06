@@ -41,7 +41,7 @@ import me.rerere.hugeicons.stroke.PackageOpen
 import me.rerere.hugeicons.stroke.Search01
 import me.rerere.hugeicons.stroke.Code
 import me.rerere.hugeicons.stroke.Cpu
-import me.rerere.hugeicons.stroke.Bolt01
+import me.rerere.hugeicons.stroke.Bolt
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.Screen
 import me.rerere.rikkahub.data.ai.tools.local.ApkToolkitTool
@@ -206,7 +206,7 @@ fun SettingEnhancedPage(
                 )
                 item(
                     onClick = { runApkAction("dex_info") },
-                    leadingContent = { Icon(HugeIcons.Bolt01, null) },
+                    leadingContent = { Icon(HugeIcons.Bolt, null) },
                     headlineContent = { Text(stringResource(R.string.setting_enhanced_dex_info)) },
                     supportingContent = { Text(stringResource(R.string.setting_enhanced_dex_info_desc)) },
                 )
@@ -264,7 +264,7 @@ fun SettingEnhancedPage(
             ) {
                 item(
                     onClick = { createAnalysisConversation() },
-                    leadingContent = { Icon(HugeIcons.Bolt01, null) },
+                    leadingContent = { Icon(HugeIcons.Bolt, null) },
                     headlineContent = { Text(stringResource(R.string.setting_enhanced_create_session)) },
                     supportingContent = { Text(stringResource(R.string.setting_enhanced_create_session_desc)) },
                 )
