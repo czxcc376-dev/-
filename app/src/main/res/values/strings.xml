@@ -1475,4 +1475,12 @@
   <string name="setting_enhanced_build_apk_desc">apktool build: repack decoded directory into APK</string>
   <string name="setting_enhanced_repack_apk">Repack APK (DEX swap)</string>
   <string name="setting_enhanced_repack_apk_desc">Pure-Java: rebuild smali to DEX and swap it into the original APK, resources untouched (unsigned)</string>
+  <string name="plan_workbench_title">Plan workbench</string>
+  <string name="plan_workbench_empty">No active plan</string>
+  <string name="plan_workbench_empty_desc">Start a multi-step task and its timeline &amp; dependencies will appear here.</string>
+  <string name="plan_workbench_timeline">Timeline</string>
+  <string name="plan_workbench_graph">Dependencies</string>
+  <string name="plan_workbench_owner">Owner</string>
+  <string name="plan_workbench_waiting">Waiting</string>
+  <string name="plan_workbench_no_steps">No steps</string>
 </resources>

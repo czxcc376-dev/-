@@ -1472,4 +1472,12 @@
   <string name="setting_enhanced_build_apk_desc">apktool 打包：將解包目錄重新打包為 APK</string>
   <string name="setting_enhanced_repack_apk">重打包 APK（換 DEX）</string>
   <string name="setting_enhanced_repack_apk_desc">純 Java：smali 回編譯為 DEX 並替換進原 APK，資源不動（未簽名）</string>
+  <string name="plan_workbench_title">計畫工作台</string>
+  <string name="plan_workbench_empty">暫無活躍計畫</string>
+  <string name="plan_workbench_empty_desc">發起一個多步任務後，這裡會顯示時間軸與依賴關係。</string>
+  <string name="plan_workbench_timeline">時間軸</string>
+  <string name="plan_workbench_graph">依賴圖</string>
+  <string name="plan_workbench_owner">負責人</string>
+  <string name="plan_workbench_waiting">等待</string>
+  <string name="plan_workbench_no_steps">暫無步驟</string>
 </resources>
