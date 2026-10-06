@@ -94,7 +94,7 @@ import org.koin.core.parameter.parametersOf
 import kotlin.time.Duration.Companion.milliseconds
 import dev.chrisbanes.haze.HazeInput
 import dev.chrisbanes.haze.blur.HazeBlurStyle
-import dev.chrisbanes.haze.blur.hazeChild
+import dev.chrisbanes.haze.blur.hazeBlur
 import kotlin.uuid.Uuid
 
 @Composable
@@ -329,7 +329,7 @@ private fun ChatPageContent(
                         .fillMaxWidth()
                         .then(
                             if (setting.displaySetting.enableBlurEffect && !setting.displaySetting.performanceMode) {
-                                Modifier.hazeChild(
+                                Modifier.hazeBlur(
                                     input = HazeInput.Sources(hazeState),
                                     style = HazeBlurStyle.Material3 { blurRadius(20.dp) },
                                 )
