@@ -460,7 +460,7 @@ private fun base32Encode(bytes: ByteArray): String {
 }
 
 private fun base32Decode(input: String): ByteArray {
-    val clean = input.trim().uppercase().replace("=", "").replace("\s".toRegex(), "")
+    val clean = input.trim().uppercase().replace("=", "").replace(Regex("\\s"), "")
     val out = ByteArrayOutputStream()
     var buffer = 0
     var bits = 0

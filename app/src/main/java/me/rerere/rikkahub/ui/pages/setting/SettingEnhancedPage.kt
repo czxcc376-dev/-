@@ -390,7 +390,6 @@ private fun FeatureToggles(
     }
 }
 
-@Composable
 private fun CardGroupScope.FeatureToggleRow(
     title: String,
     subtitle: String,

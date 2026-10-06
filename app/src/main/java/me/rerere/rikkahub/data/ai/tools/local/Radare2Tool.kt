@@ -276,9 +276,9 @@ private fun filterLines(result: Map<String, Any>, query: String, count: Int): Ma
     val filtered = if (query.isBlank()) lines else lines.filter { it.contains(query, ignoreCase = true) }
     val limited = filtered.take(count.coerceIn(1, 2000))
     return linkedMapOf(
-        "tool" to result["tool"],
-        "args" to result["args"],
-        "exit_code" to result["exit_code"],
+        "tool" to (result["tool"] ?: ""),
+        "args" to (result["args"] ?: ""),
+        "exit_code" to (result["exit_code"] ?: 0),
         "total_lines" to lines.size,
         "shown" to limited.size,
         "output" to limited.joinToString("\n"),

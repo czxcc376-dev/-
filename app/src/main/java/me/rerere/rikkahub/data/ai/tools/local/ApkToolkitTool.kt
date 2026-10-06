@@ -756,11 +756,11 @@ private fun elfSymbols(file: File, entryName: String?): Map<String, Any> {
     val bytes = readElfBytes(file, entryName) ?: return mapOf("error" to "ELF entry not found or not a zip entry")
     val parsed = parseElfFull(bytes)
     return mapOf(
-        "arch" to parsed["arch"],
-        "bits" to parsed["bits"],
-        "symbols" to parsed["symbols"],
-        "dynsym_count" to parsed["dynsym_count"],
-        "symtab_count" to parsed["symtab_count"],
+        "arch" to (parsed["arch"] ?: ""),
+        "bits" to (parsed["bits"] ?: 0),
+        "symbols" to (parsed["symbols"] ?: emptyList<String>()),
+        "dynsym_count" to (parsed["dynsym_count"] ?: 0),
+        "symtab_count" to (parsed["symtab_count"] ?: 0),
     )
 }
 

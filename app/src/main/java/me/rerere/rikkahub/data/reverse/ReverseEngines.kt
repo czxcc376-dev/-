@@ -107,7 +107,7 @@ object JadxEngine {
         decompiler.load()
         return try {
             // 并行反编译并落盘（jadx 会使用 threads 个线程）
-            decompiler.save(threads.coerceAtLeast(1))
+            decompiler.save(threads.coerceAtLeast(1), null)
             val generated = File(work, "sources")
             val javaFiles = if (generated.isDirectory) {
                 generated.walkTopDown().filter { it.isFile && it.name.endsWith(".java") }.count()
