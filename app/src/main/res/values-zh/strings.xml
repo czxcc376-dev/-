@@ -1425,4 +1425,15 @@ mDNS 地址：使用 .local 主机名，同一网络中的其他设备可通过�
   <string name="chat_message_tool_interactive_plan_answers">你的回答</string>
   <string name="chat_message_tool_interactive_plan_no_answer">未回答</string>
   <string name="chat_message_tool_interactive_plan_waiting_on">等待前置：%1$s</string>
+  <string name="plan_hud_current_step">正在进行：%1$s</string>
+  <string name="plan_hud_waiting">等待下一步</string>
+  <string name="plan_hud_all_done">全部步骤已完成</string>
+  <string name="plan_hud_required_unanswered">有 %1$d 个问题待你回答</string>
+  <string name="plan_hud_section_active">正在进行</string>
+  <string name="plan_hud_section_pending">待处理</string>
+  <string name="plan_hud_section_blocked">已阻塞</string>
+  <string name="plan_hud_section_completed">已完成</string>
+  <string name="plan_hud_expand">展开计划</string>
+  <string name="plan_hud_collapse">收起计划</string>
+  <string name="chat_message_tool_interactive_plan_required_hint">请先回答上方标记为必答的问题，再开始执行。</string>
 </resources>

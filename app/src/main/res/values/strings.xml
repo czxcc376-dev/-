@@ -1425,4 +1425,15 @@
   <string name="chat_message_tool_interactive_plan_answers">Your answers</string>
   <string name="chat_message_tool_interactive_plan_no_answer">No answer</string>
   <string name="chat_message_tool_interactive_plan_waiting_on">Waiting on: %1$s</string>
+  <string name="plan_hud_current_step">In progress: %1$s</string>
+  <string name="plan_hud_waiting">Waiting for the next step</string>
+  <string name="plan_hud_all_done">All steps completed</string>
+  <string name="plan_hud_required_unanswered">%1$d question(s) need your answer</string>
+  <string name="plan_hud_section_active">In progress</string>
+  <string name="plan_hud_section_pending">Pending</string>
+  <string name="plan_hud_section_blocked">Blocked</string>
+  <string name="plan_hud_section_completed">Completed</string>
+  <string name="plan_hud_expand">Expand plan</string>
+  <string name="plan_hud_collapse">Collapse plan</string>
+  <string name="chat_message_tool_interactive_plan_required_hint">Please answer the required questions above before starting.</string>
 </resources>

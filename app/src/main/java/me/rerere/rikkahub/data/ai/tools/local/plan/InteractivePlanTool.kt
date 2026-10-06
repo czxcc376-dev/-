@@ -6,6 +6,7 @@ import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 import me.rerere.ai.core.InputSchema
 import me.rerere.ai.core.Tool
+import me.rerere.ai.ui.UIMessage
 import me.rerere.ai.ui.UIMessagePart
 
 /**
@@ -20,16 +21,23 @@ import me.rerere.ai.ui.UIMessagePart
  * - [needsApproval] 对 create_or_update/confirm 为 true（进入 HITL），对 complete/cancel 为 false（直接收尾）；
  * - [execute] 在 complete/cancel 或用户回答后的兜底路径中会把当前计划快照写入输出。
  */
+private const val PLAN_TOOL_NAME = "interactive_plan"
+
 fun buildInteractivePlanTool(): Tool = Tool(
-    name = "interactive_plan",
+    name = PLAN_TOOL_NAME,
     description = """
         Create, update, confirm, or cancel a structured task plan and ask the user for clarification
         or confirmation while the plan is executed. Use this for complex, multi-step tasks that
         benefit from user oversight. The plan is rendered as an interactive card; the user can edit
         steps, answer questions, and choose to continue, adjust, or cancel before generation resumes.
     """.trimIndent().replace("\n", " "),
-    systemPrompt = { _, _ ->
-        INTERACTIVE_PLAN_SYSTEM_PROMPT
+    systemPrompt = { _, messages ->
+        val live = buildLivePlanSection(messages)
+        if (live.isNullOrBlank()) {
+            INTERACTIVE_PLAN_SYSTEM_PROMPT
+        } else {
+            INTERACTIVE_PLAN_SYSTEM_PROMPT + "\n\n" + live
+        }
     },
     parameters = {
         InputSchema.Obj(
@@ -200,6 +208,51 @@ fun buildInteractivePlanTool(): Tool = Tool(
         )
     }
 )
+
+
+/**
+ * 把当前会话里最新的 interactive_plan 计划提取成一段纯文本，注入系统提示。
+ *
+ * 目的：让模型每一轮都能看到计划的最新状态，从而继续推进/更新计划，
+ * 而不是几轮之后「忘记」计划导致卡片进度假死。
+ */
+private fun buildLivePlanSection(messages: List<UIMessage>): String? {
+    val tool = messages
+        .flatMap { it.getTools() }
+        .lastOrNull { it.toolName == PLAN_TOOL_NAME } ?: return null
+
+    val request = parsePlanRequest(tool.inputAsJson())
+    val state = tool.approvalState
+    val view = when {
+        state is me.rerere.ai.ui.ToolApprovalState.Answered ->
+            buildPlanView(request, parsePlanUserAnswer(state.answer))
+
+        else -> tool.output
+            .filterIsInstance<UIMessagePart.Text>()
+            .firstOrNull()
+            ?.text
+            ?.let { decodePlanSnapshot(it) }
+            ?.toView()
+            ?: buildPlanView(request, null)
+    }
+    if (view.steps.isEmpty() && view.goal.isBlank()) return null
+
+    val done = view.steps.count { it.isDone }
+    return buildString {
+        appendLine("**Current plan state (live)**")
+        appendLine("Goal: ${view.goal}")
+        appendLine("Progress: $done/${view.steps.size}")
+        view.steps.forEach { step ->
+            append("- [${step.status.name.lowercase()}] ${step.id}: ${step.title}")
+            if (step.detail.isNotBlank()) append(" — ${step.detail}")
+            appendLine()
+        }
+        if (view.answers.isNotEmpty()) {
+            appendLine("User answers: " + view.answers.entries.joinToString("; ") { "${it.key}=${it.value}" })
+        }
+        append("Continue from the current state. Keep statuses honest and update the plan at meaningful checkpoints.")
+    }
+}
 
 private val INTERACTIVE_PLAN_SYSTEM_PROMPT = """
 **Interactive Plan Tool**

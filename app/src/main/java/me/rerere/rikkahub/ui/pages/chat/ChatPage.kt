@@ -56,6 +56,9 @@ import me.rerere.ai.provider.Model
 import me.rerere.ai.provider.ProviderSetting
 import me.rerere.ai.ui.UIMessagePart
 import me.rerere.hugeicons.HugeIcons
+import me.rerere.rikkahub.ui.components.message.plan.ActivePlan
+import me.rerere.rikkahub.ui.components.message.plan.PlanHudPanel
+import me.rerere.rikkahub.ui.components.message.plan.findActivePlan
 import me.rerere.hugeicons.stroke.Cancel01
 import me.rerere.hugeicons.stroke.LeftToRightListBullet
 import me.rerere.hugeicons.stroke.Menu03
@@ -334,6 +337,22 @@ private fun ChatPageContent(
             bottomBar = {
                 val messageQueue by vm.messageQueue.collectAsStateWithLifecycle()
                 val voiceState by vm.voiceSession.state.collectAsStateWithLifecycle()
+
+                // 输入框上方的计划 HUD：折叠显示当前步骤与进度，展开显示全部步骤；无计划时不显示。
+                val activePlan: ActivePlan? = remember(conversation.messageNodes) {
+                    conversation.findActivePlan()
+                }
+                val typing = inputState.textContent.text.isNotBlank()
+                PlanHudPanel(
+                    activePlan = activePlan,
+                    typing = typing,
+                    onJumpToPlan = { nodeIndex ->
+                        scope.launch {
+                            chatListState.requestScrollToItem(nodeIndex)
+                        }
+                    },
+                )
+
                 ChatInput(
                     onStartVoiceMode = onStartVoiceMode,
                     voiceState = voiceState,

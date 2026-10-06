@@ -1,8 +1,6 @@
 package me.rerere.rikkahub.ui.components.message
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
@@ -10,7 +8,6 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
@@ -30,7 +27,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import me.rerere.ai.ui.ToolApprovalState
@@ -54,6 +50,7 @@ import me.rerere.rikkahub.data.ai.tools.local.plan.weightedProgress
 import me.rerere.rikkahub.data.ai.tools.local.plan.encodePlanUserAnswer
 import me.rerere.rikkahub.data.ai.tools.local.plan.parsePlanRequest
 import me.rerere.rikkahub.data.ai.tools.local.plan.parsePlanUserAnswer
+import me.rerere.rikkahub.ui.components.message.plan.PlanStatusGlyph
 import me.rerere.rikkahub.ui.components.ui.ChainOfThoughtScope
 import me.rerere.rikkahub.ui.components.ui.DotLoading
 
@@ -173,8 +170,22 @@ fun ChainOfThoughtScope.InteractivePlanToolStep(
                         multiAnswers = multiAnswers,
                     )
 
+                    val visibleQuestions = questions.filter { it.isVisible(answers, multiAnswers) }
+                    val hasUnansweredRequired = visibleQuestions.any { q ->
+                        q.required && answers[q.id].isNullOrBlank() && multiAnswers[q.id].isNullOrEmpty()
+                    }
+
+                    if (hasUnansweredRequired) {
+                        Text(
+                            text = stringResource(R.string.chat_message_tool_interactive_plan_required_hint),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.error,
+                        )
+                    }
+
                     PlanActions(
                         enabled = true,
+                        confirmEnabled = !hasUnansweredRequired,
                         onConfirm = {
                             val userAnswer = buildUserAnswer(
                                 operation = InteractivePlanOperation.CONFIRM,
@@ -233,18 +244,25 @@ private fun PlanStep.toUserStep(): UserPlanStep = UserPlanStep(
 /** 紧凑的进度角标，显示在标题行右侧。 */
 @Composable
 private fun ProgressChip(done: Int, total: Int) {
+    val complete = total > 0 && done >= total
+    val container = if (complete) {
+        MaterialTheme.colorScheme.primaryContainer
+    } else {
+        MaterialTheme.colorScheme.secondaryContainer
+    }
+    val onContainer = if (complete) {
+        MaterialTheme.colorScheme.onPrimaryContainer
+    } else {
+        MaterialTheme.colorScheme.onSecondaryContainer
+    }
     Surface(
-        color = if (done >= total && total > 0) {
-            MaterialTheme.colorScheme.primaryContainer
-        } else {
-            MaterialTheme.colorScheme.secondaryContainer
-        },
+        color = container,
         shape = MaterialTheme.shapes.small,
     ) {
         Text(
             text = stringResource(R.string.chat_message_tool_interactive_plan_progress, done, total),
             style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onSecondaryContainer,
+            color = onContainer,
             modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
         )
     }
@@ -364,13 +382,20 @@ private fun PlanStepResultRow(step: PlanStep, allSteps: List<PlanStep>) {
         horizontalArrangement = Arrangement.spacedBy(8.dp),
         modifier = Modifier.fillMaxWidth(),
     ) {
-        StatusDot(status = step.status)
+        PlanStatusGlyph(status = step.status, size = 12.dp)
         Column(modifier = Modifier.weight(1f)) {
             Text(
                 text = step.title,
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurface,
             )
+            if (step.detail.isNotBlank()) {
+                Text(
+                    text = step.detail,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
             val meta = buildMetaText(step, allSteps)
             if (meta != null) {
                 Text(
@@ -416,16 +441,6 @@ private fun formatDuration(millis: Long): String {
     val minutes = totalSeconds / 60
     val seconds = totalSeconds % 60
     return if (minutes > 0) "${minutes}m ${seconds}s" else "${seconds}s"
-}
-
-@Composable
-private fun StatusDot(status: PlanStepStatus) {
-    Box(
-        modifier = Modifier
-            .size(8.dp)
-            .clip(CircleShape)
-            .background(statusColor(status)),
-    )
 }
 
 @Composable
@@ -614,11 +629,12 @@ private fun PlanActions(
     onAdjust: () -> Unit,
     onComplete: () -> Unit,
     onCancel: () -> Unit,
+    confirmEnabled: Boolean = enabled,
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
         FilledTonalButton(
             onClick = onConfirm,
-            enabled = enabled,
+            enabled = confirmEnabled,
             modifier = Modifier.fillMaxWidth(),
         ) {
             Text(stringResource(R.string.chat_message_tool_interactive_plan_confirm_and_start))

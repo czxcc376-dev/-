@@ -1422,4 +1422,15 @@
   <string name="chat_message_tool_interactive_plan_answers">你的回答</string>
   <string name="chat_message_tool_interactive_plan_no_answer">未回答</string>
   <string name="chat_message_tool_interactive_plan_waiting_on">等待前置：%1$s</string>
+  <string name="plan_hud_current_step">正在進行：%1$s</string>
+  <string name="plan_hud_waiting">等待下一步</string>
+  <string name="plan_hud_all_done">全部步驟已完成</string>
+  <string name="plan_hud_required_unanswered">有 %1$d 個問題待你回答</string>
+  <string name="plan_hud_section_active">正在進行</string>
+  <string name="plan_hud_section_pending">待處理</string>
+  <string name="plan_hud_section_blocked">已阻擋</string>
+  <string name="plan_hud_section_completed">已完成</string>
+  <string name="plan_hud_expand">展開計畫</string>
+  <string name="plan_hud_collapse">收起計畫</string>
+  <string name="chat_message_tool_interactive_plan_required_hint">請先回答上方標記為必答的問題，再開始執行。</string>
 </resources>
