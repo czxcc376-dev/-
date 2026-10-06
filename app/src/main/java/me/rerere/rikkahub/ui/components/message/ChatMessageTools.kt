@@ -97,6 +97,7 @@ fun ChainOfThoughtScope.ChatMessageToolStep(
     loading: Boolean = false,
     onToolApproval: ((toolCallId: String, approved: Boolean, reason: String) -> Unit)? = null,
     onToolAnswer: ((toolCallId: String, answer: String) -> Unit)? = null,
+    onRerunPlanStep: ((prompt: String) -> Unit)? = null,
 ) {
     // ask_user 是交互式问答流程, 不走注册式渲染框架
     if (tool.toolName == ASK_USER_TOOL_NAME) {
@@ -106,7 +107,12 @@ fun ChainOfThoughtScope.ChatMessageToolStep(
 
     // interactive_plan 是计划驱动的交互式流程，独立渲染为可编辑计划卡片
     if (tool.toolName == INTERACTIVE_PLAN_TOOL_NAME) {
-        InteractivePlanToolStep(tool = tool, loading = loading, onToolAnswer = onToolAnswer)
+        InteractivePlanToolStep(
+            tool = tool,
+            loading = loading,
+            onToolAnswer = onToolAnswer,
+            onRerunStep = onRerunPlanStep,
+        )
         return
     }
 

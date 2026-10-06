@@ -533,6 +533,9 @@ private fun ChatPageContent(
                 onToolAnswer = { toolCallId, answer ->
                     vm.handleToolAnswer(toolCallId, answer)
                 },
+                onRerunPlanStep = { prompt ->
+                    vm.handleMessageSend(listOf(UIMessagePart.Text(prompt)))
+                },
                 onToggleFavorite = { node ->
                     vm.toggleMessageFavorite(node)
                 },

@@ -1442,4 +1442,5 @@
   <string name="setting_model_page_follow_assistant_value">Follow assistant: %1$s</string>
   <string name="assistant_page_local_tools_reverse_toolkit_title">Reverse Toolkit</string>
   <string name="assistant_page_local_tools_reverse_toolkit_desc">Offline decode/encode and string analysis: base64, hex, url, hash, IP/domain/JWT extraction, XOR brute force</string>
+  <string name="chat_message_tool_interactive_plan_rerun">Re-run this step</string>
 </resources>

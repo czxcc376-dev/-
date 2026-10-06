@@ -90,3 +90,20 @@ fun InteractivePlanView.buildModelHandoffNote(currentModelName: String?): String
         append("Keep the shared plan in sync when you take over a step.")
     }
 }
+
+/**
+ * 步骤级重跑：为某个步骤生成一条交给模型的「重做该步骤」指令。
+ *
+ * 会带上计划目标、该步骤标题/详情、以及已完成的步骤，让模型只重做这一步而不推翻整个计划。
+ */
+fun InteractivePlanView.buildStepReplayPrompt(step: PlanStep): String {
+    val doneTitles = steps.filter { it.isDone }.joinToString("; ") { it.title }
+    return buildString {
+        append("Re-run the following plan step. Do not restart the whole plan.\n")
+        append("Plan goal: $goal\n")
+        append("Target step: [${step.id}] ${step.title}\n")
+        if (step.detail.isNotBlank()) append("Step detail: ${step.detail}\n")
+        if (doneTitles.isNotBlank()) append("Already completed (keep as-is): $doneTitles\n")
+        append("Execute this step now, then mark it with interactive_plan (status update) and report the result concisely.")
+    }
+}

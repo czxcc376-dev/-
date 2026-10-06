@@ -53,6 +53,9 @@ import me.rerere.rikkahub.data.ai.tools.local.plan.weightedProgress
 import me.rerere.rikkahub.data.ai.tools.local.plan.encodePlanUserAnswer
 import me.rerere.rikkahub.data.ai.tools.local.plan.parsePlanRequest
 import me.rerere.rikkahub.data.ai.tools.local.plan.parsePlanUserAnswer
+import androidx.compose.material3.IconButton
+import me.rerere.hugeicons.stroke.Refresh01
+import me.rerere.rikkahub.data.ai.tools.local.plan.buildStepReplayPrompt
 import me.rerere.rikkahub.ui.components.message.plan.PlanAmbientGlow
 import me.rerere.rikkahub.ui.components.message.plan.PlanStatusGlyph
 import me.rerere.rikkahub.ui.components.ui.ChainOfThoughtScope
@@ -73,6 +76,7 @@ fun ChainOfThoughtScope.InteractivePlanToolStep(
     tool: UIMessagePart.Tool,
     loading: Boolean,
     onToolAnswer: ((toolCallId: String, answer: String) -> Unit)?,
+    onRerunStep: ((prompt: String) -> Unit)? = null,
 ) {
     val arguments = tool.inputAsJson()
     val initialRequest = remember(arguments) { parsePlanRequest(arguments) }
@@ -166,7 +170,7 @@ fun ChainOfThoughtScope.InteractivePlanToolStep(
                     .padding(horizontal = 12.dp, vertical = 10.dp)
             ) {
                 if (resultView != null) {
-                    PlanResultContent(view = resultView)
+                    PlanResultContent(view = resultView, onRerunStep = onRerunStep)
                 } else {
                     PlanProgressHeader(steps = editorSteps)
 
@@ -327,7 +331,10 @@ private fun PlanProgressHeader(steps: List<PlanStep>, modifier: Modifier = Modif
  * 已回答后的只读结果视图：完整展示目标、进度、步骤（含耗时/阻塞原因）与用户回答。
  */
 @Composable
-private fun PlanResultContent(view: InteractivePlanView) {
+private fun PlanResultContent(
+    view: InteractivePlanView,
+    onRerunStep: ((prompt: String) -> Unit)? = null,
+) {
     if (view.goal.isNotBlank()) {
         Text(
             text = view.goal,
@@ -356,9 +363,19 @@ private fun PlanResultContent(view: InteractivePlanView) {
             // 树形渲染：顶层步骤 + 缩进的子步骤
             val roots = view.steps.rootSteps().ifEmpty { view.steps }
             roots.forEach { root ->
-                PlanStepResultRow(step = root, allSteps = view.steps, depth = 0)
+                PlanStepResultRow(
+                    step = root,
+                    allSteps = view.steps,
+                    depth = 0,
+                    onRerun = onRerunStep?.let { cb -> { cb(view.buildStepReplayPrompt(root)) } },
+                )
                 view.steps.childrenOf(root.id).forEach { child ->
-                    PlanStepResultRow(step = child, allSteps = view.steps, depth = 1)
+                    PlanStepResultRow(
+                        step = child,
+                        allSteps = view.steps,
+                        depth = 1,
+                        onRerun = onRerunStep?.let { cb -> { cb(view.buildStepReplayPrompt(child)) } },
+                    )
                 }
             }
         }
@@ -402,6 +419,7 @@ private fun PlanStepResultRow(
     step: PlanStep,
     allSteps: List<PlanStep>,
     depth: Int = 0,
+    onRerun: (() -> Unit)? = null,
 ) {
     Row(
         verticalAlignment = Alignment.CenterVertically,
@@ -441,6 +459,16 @@ private fun PlanStepResultRow(
             style = MaterialTheme.typography.labelSmall,
             color = statusColor(step.status),
         )
+        if (onRerun != null) {
+            IconButton(onClick = onRerun, modifier = Modifier.size(28.dp)) {
+                Icon(
+                    imageVector = HugeIcons.Refresh01,
+                    contentDescription = stringResource(R.string.chat_message_tool_interactive_plan_rerun),
+                    modifier = Modifier.size(16.dp),
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        }
     }
 }
 
