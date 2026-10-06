@@ -15,11 +15,11 @@ jobs:
           fetch-depth: 0
           submodules: recursive
 
-      - name: Set up JDK 21
+      - name: Set up JDK
         uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
-          java-version: '21'
+          java-version: '17'
 
       - name: Set up pnpm
         uses: pnpm/action-setup@v4
@@ -92,9 +92,7 @@ jobs:
       - name: Build Debug APK
         run: |
           chmod +x gradlew
-          ./gradlew :app:assembleDebug --no-daemon --console=plain --parallel --build-cache -Dorg.gradle.workers.max=4 \
-            -Dorg.gradle.java.installations.paths=$JAVA_HOME \
-            -Porg.gradle.java.installations.auto-download=false
+          ./gradlew :app:assembleDebug --no-daemon --console=plain --parallel --build-cache -Dorg.gradle.workers.max=4
 
       - name: Publish Debug APK
         uses: softprops/action-gh-release@v2
