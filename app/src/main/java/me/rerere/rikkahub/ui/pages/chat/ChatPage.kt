@@ -66,6 +66,7 @@ import me.rerere.rikkahub.ui.components.message.plan.findActivePlan
 import me.rerere.hugeicons.stroke.Cancel01
 import me.rerere.hugeicons.stroke.LeftToRightListBullet
 import me.rerere.hugeicons.stroke.Menu03
+import me.rerere.hugeicons.stroke.Task01
 import me.rerere.hugeicons.stroke.MessageAdd01
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.datastore.Settings
@@ -300,6 +301,8 @@ private fun ChatPageContent(
     val activePlan: ActivePlan? = remember(conversation.messageNodes) {
         conversation.findActivePlan()
     }
+    // 工作台手动打开/折叠：竖屏也能从顶栏入口打开。
+    var workbenchOpen by rememberSaveable { mutableStateOf(false) }
     var showFilesSheet by remember { mutableStateOf(false) }
     val attachmentPickerActions = rememberChatAttachmentPickerActions(
         inputState = inputState,
@@ -336,6 +339,9 @@ private fun ChatPageContent(
                     bigScreen = bigScreen,
                     drawerState = drawerState,
                     previewMode = previewMode,
+                    hasActivePlan = activePlan != null,
+                    workbenchOpen = workbenchOpen,
+                    onToggleWorkbench = { workbenchOpen = !workbenchOpen },
                     onNewChat = {
                         navigateToChatPage(navController)
                     },
@@ -474,7 +480,7 @@ private fun ChatPageContent(
             },
             containerColor = Color.Transparent,
         ) { innerPadding ->
-            if (workbenchVisible && activePlan != null) {
+            if ((workbenchVisible || workbenchOpen) && activePlan != null) {
                 Row(modifier = Modifier.fillMaxSize()) {
                     Box(modifier = Modifier.weight(1f)) {
                                     ChatList(
@@ -749,6 +755,9 @@ private fun TopBar(
     drawerState: DrawerState,
     bigScreen: Boolean,
     previewMode: Boolean,
+    hasActivePlan: Boolean,
+    workbenchOpen: Boolean,
+    onToggleWorkbench: () -> Unit,
     onClickMenu: () -> Unit,
     onNewChat: () -> Unit,
     onUpdateTitle: (String) -> Unit
@@ -809,6 +818,18 @@ private fun TopBar(
             }
         },
         actions = {
+            IconButton(
+                onClick = onToggleWorkbench,
+                enabled = hasActivePlan || workbenchOpen,
+            ) {
+                Icon(
+                    imageVector = HugeIcons.Task01,
+                    contentDescription = "Plan Workbench",
+                    tint = if (workbenchOpen) MaterialTheme.colorScheme.primary
+                    else LocalContentColor.current,
+                )
+            }
+
             IconButton(
                 onClick = {
                     onClickMenu()
