@@ -242,6 +242,20 @@ private fun AssistantLocalToolContent(
             )
             item(
                 headlineContent = {
+                    Text(stringResource(R.string.assistant_page_local_tools_reverse_toolkit_title))
+                },
+                supportingContent = {
+                    Text(stringResource(R.string.assistant_page_local_tools_reverse_toolkit_desc))
+                },
+                trailingContent = {
+                    Switch(
+                        checked = assistant.localTools.contains(LocalToolOption.ReverseToolkit),
+                        onCheckedChange = { toggleLocalTool(LocalToolOption.ReverseToolkit, it) }
+                    )
+                }
+            )
+            item(
+                headlineContent = {
                     Text(stringResource(R.string.assistant_page_local_tools_chart_display_title))
                 },
                 supportingContent = {

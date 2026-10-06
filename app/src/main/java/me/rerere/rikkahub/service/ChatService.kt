@@ -59,6 +59,8 @@ import me.rerere.rikkahub.data.ai.transformers.TimeReminderTransformer
 import me.rerere.rikkahub.data.ai.transformers.WorkspaceReminderTransformer
 import me.rerere.rikkahub.data.event.AppEvent
 import me.rerere.rikkahub.data.event.AppEventBus
+import me.rerere.rikkahub.data.ai.tools.local.plan.findLatestPlanView
+import me.rerere.rikkahub.data.ai.tools.local.plan.toContextText
 import me.rerere.rikkahub.data.datastore.SettingsStore
 import me.rerere.rikkahub.data.datastore.resolveModelOrAssistant
 import me.rerere.rikkahub.data.datastore.findModelById
@@ -998,10 +1000,16 @@ class ChatService(
                 .awaitAll()
         }
 
+        // 计划联动：压缩前先抓取当前计划，作为一条合成消息保留，避免计划状态被摘要「吃掉」。
+        val planContext = allMessages.findLatestPlanView()?.toContextText()
+
         // Create new conversation with compressed history as multiple user messages + kept messages
         val newMessageNodes = buildList {
             compressedSummaries.forEach { summary ->
                 add(UIMessage.user(summary).toMessageNode())
+            }
+            if (!planContext.isNullOrBlank()) {
+                add(UIMessage.user(planContext).toMessageNode())
             }
             addAll(messagesToKeep.map { it.toMessageNode() })
         }

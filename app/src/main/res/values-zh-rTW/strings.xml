@@ -1437,4 +1437,6 @@
   <string name="setting_model_page_follow_assistant">跟隨目前助手</string>
   <string name="setting_model_page_follow_assistant_desc">使用目前助手所配置的模型</string>
   <string name="setting_model_page_follow_assistant_value">跟隨助手：%1$s</string>
+  <string name="assistant_page_local_tools_reverse_toolkit_title">逆向工具箱</string>
+  <string name="assistant_page_local_tools_reverse_toolkit_desc">離線編解碼與字串分析：Base64、十六進位、URL、雜湊、IP/網域/JWT 擷取、XOR 爆破</string>
 </resources>

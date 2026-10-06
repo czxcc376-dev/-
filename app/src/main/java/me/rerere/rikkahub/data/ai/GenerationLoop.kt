@@ -274,18 +274,28 @@ class GenerationLoop(
                             // 取消必须向上传播，否则停止生成会被误报为工具执行错误
                             if (it is CancellationException) throw it
                             it.printStackTrace()
+                            // 失败自愈：除了原始错误，还给模型一份可执行的恢复指引，
+                            // 让它在下一轮尝试修正参数、换用其它工具或向用户说明。
+                            val errorType = it.javaClass.simpleName
+                            val rawMessage = it.message.orEmpty()
+                            val guidance = buildString {
+                                append("The tool execution failed. Do not give up or hallucinate a result.")
+                                append(" Diagnose the cause and recover:")
+                                append(" 1) Fix and retry with corrected arguments if the failure looks like bad input;")
+                                append(" 2) If a prerequisite is missing, do it first (e.g. read the file before editing);")
+                                append(" 3) If the tool is unavailable or blocked, explain the situation and propose an alternative;")
+                                append(" 4) If it is a transient/network error, retry once;")
+                                append(" 5) If user input is required, ask a concise question.")
+                            }
                             executedTools += tool.copy(
                                 output = listOf(
                                     UIMessagePart.Text(
                                         json.encodeToString(
                                             buildJsonObject {
-                                                put(
-                                                    "error",
-                                                    JsonPrimitive(buildString {
-                                                        append("[${it.javaClass.name}] ${it.message}")
-                                                        append("\n${it.stackTraceToString()}")
-                                                    })
-                                                )
+                                                put("error", JsonPrimitive(rawMessage.ifBlank { "Unknown tool error" }))
+                                                put("error_type", JsonPrimitive(errorType))
+                                                put("recoverable", JsonPrimitive(true))
+                                                put("recovery_guidance", JsonPrimitive(guidance))
                                             }
                                         )
                                     )

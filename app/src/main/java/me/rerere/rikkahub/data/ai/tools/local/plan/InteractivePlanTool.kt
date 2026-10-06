@@ -33,10 +33,13 @@ fun buildInteractivePlanTool(): Tool = Tool(
     """.trimIndent().replace("\n", " "),
     systemPrompt = { _, messages ->
         val live = buildLivePlanSection(messages)
-        if (live.isNullOrBlank()) {
-            INTERACTIVE_PLAN_SYSTEM_PROMPT
-        } else {
-            INTERACTIVE_PLAN_SYSTEM_PROMPT + "\n\n" + live
+        val handoff = messages
+            .findLatestPlanView()
+            ?.buildModelHandoffNote(currentModelName = null)
+        buildString {
+            append(INTERACTIVE_PLAN_SYSTEM_PROMPT)
+            if (!live.isNullOrBlank()) append("\n\n").append(live)
+            if (!handoff.isNullOrBlank()) append("\n\n").append(handoff)
         }
     },
     parameters = {

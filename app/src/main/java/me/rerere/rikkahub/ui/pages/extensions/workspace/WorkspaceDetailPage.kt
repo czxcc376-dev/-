@@ -75,6 +75,8 @@ import me.rerere.hugeicons.stroke.File02
 import me.rerere.hugeicons.stroke.FileImport
 import me.rerere.hugeicons.stroke.Folder01
 import me.rerere.hugeicons.stroke.MoreVertical
+import me.rerere.hugeicons.stroke.Search01
+import me.rerere.hugeicons.stroke.Cancel01
 import me.rerere.hugeicons.stroke.Refresh01
 import me.rerere.hugeicons.stroke.Settings03
 import me.rerere.hugeicons.stroke.Share08
@@ -613,6 +615,7 @@ private fun WorkspaceFilesPage(
 ) {
     var selecting by remember(state.area, state.path) { mutableStateOf(false) }
     var selectedPaths by remember(state.area, state.path) { mutableStateOf(emptySet<String>()) }
+    var queryForList by remember(state.area, state.path) { mutableStateOf("") }
     val files = state.entries.filterNot { it.isDirectory }
     val selectedFiles = files.filter { it.path in selectedPaths }
     fun toggleSelection(entry: WorkspaceFileEntry) {
@@ -639,6 +642,13 @@ private fun WorkspaceFilesPage(
                 path = state.path,
                 canGoUp = state.path.isNotBlank(),
                 onGoUp = onGoUp,
+            )
+        }
+
+            item {
+            WorkspaceFileSearchBar(
+                query = queryForList,
+                onQueryChange = { queryForList = it },
             )
         }
 
@@ -682,7 +692,11 @@ private fun WorkspaceFilesPage(
             }
         }
 
-        items(state.entries, key = { "${state.area.name}:${it.path}" }) { entry ->
+        val visibleEntries = state.entries.filter { entry ->
+            queryForList.isBlank() || entry.name.contains(queryForList, ignoreCase = true) ||
+                entry.path.contains(queryForList, ignoreCase = true)
+        }
+        items(visibleEntries, key = { "${state.area.name}:${it.path}" }) { entry ->
             WorkspaceFileCard(
                 entry = entry,
                 area = state.area,
@@ -981,3 +995,25 @@ internal fun String.toShellStatusLabel(): String = when (this) {
 
 private const val DEFAULT_ROOTFS_URL =
     "https://cdimage.ubuntu.com/ubuntu-base/releases/24.04/release/ubuntu-base-24.04.3-base-arm64.tar.gz"
+
+@Composable
+private fun WorkspaceFileSearchBar(
+    query: String,
+    onQueryChange: (String) -> Unit,
+) {
+    OutlinedTextField(
+        value = query,
+        onValueChange = onQueryChange,
+        modifier = Modifier.fillMaxWidth(),
+        singleLine = true,
+        placeholder = { Text("搜索文件名 / 路径") },
+        leadingIcon = { Icon(HugeIcons.Search01, contentDescription = null) },
+        trailingIcon = {
+            if (query.isNotEmpty()) {
+                IconButton(onClick = { onQueryChange("") }) {
+                    Icon(HugeIcons.Cancel01, contentDescription = null)
+                }
+            }
+        },
+    )
+}

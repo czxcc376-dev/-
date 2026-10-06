@@ -17,6 +17,7 @@ import me.rerere.ai.ui.UIMessage
 import me.rerere.rikkahub.data.datastore.Settings
 import me.rerere.rikkahub.data.datastore.findModelById
 import me.rerere.rikkahub.data.datastore.findProvider
+import me.rerere.rikkahub.data.datastore.resolveModelOrAssistant
 import me.rerere.rikkahub.utils.applyPlaceholders
 import java.util.Locale
 

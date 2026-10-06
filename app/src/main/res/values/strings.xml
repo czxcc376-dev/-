@@ -1440,4 +1440,6 @@
   <string name="setting_model_page_follow_assistant">Follow current assistant</string>
   <string name="setting_model_page_follow_assistant_desc">Use the model of the current assistant</string>
   <string name="setting_model_page_follow_assistant_value">Follow assistant: %1$s</string>
+  <string name="assistant_page_local_tools_reverse_toolkit_title">Reverse Toolkit</string>
+  <string name="assistant_page_local_tools_reverse_toolkit_desc">Offline decode/encode and string analysis: base64, hex, url, hash, IP/domain/JWT extraction, XOR brute force</string>
 </resources>
