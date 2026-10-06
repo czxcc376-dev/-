@@ -1,0 +1,108 @@
+name: Build Debug APK
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build-debug:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          submodules: recursive
+
+      - name: Set up JDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 11
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: web-ui/pnpm-lock.yaml
+
+      - name: Install web-ui dependencies
+        working-directory: web-ui
+        run: pnpm install --frozen-lockfile
+
+      - name: Gradle cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: ${{ runner.os }}-gradle-debug-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
+          restore-keys: |
+            ${{ runner.os }}-gradle-debug-
+            ${{ runner.os }}-gradle-
+
+      - name: Prepare dummy google-services.json
+        run: |
+          cat > app/google-services.json <<'JSON'
+          {
+            "project_info": {
+              "project_number": "000000000000",
+              "project_id": "rikkahub-fork-dummy",
+              "storage_bucket": "rikkahub-fork-dummy.appspot.com"
+            },
+            "client": [
+              {
+                "client_info": {
+                  "mobilesdk_app_id": "1:000000000000:android:0000000000000000",
+                  "android_client_info": {
+                    "package_name": "me.rerere.rikkahub"
+                  }
+                },
+                "api_key": [
+                  {
+                    "current_key": "AIzaSyDummyKeyForLocalBuildOnly"
+                  }
+                ]
+              },
+              {
+                "client_info": {
+                  "mobilesdk_app_id": "1:000000000000:android:0000000000000000",
+                  "android_client_info": {
+                    "package_name": "me.rerere.rikkahub.debug"
+                  }
+                },
+                "api_key": [
+                  {
+                    "current_key": "AIzaSyDummyKeyForLocalBuildOnly"
+                  }
+                ]
+              }
+            ],
+            "configuration_version": "1"
+          }
+          JSON
+
+      - name: Build Debug APK
+        run: |
+          chmod +x gradlew
+          ./gradlew :app:assembleDebug --no-daemon --console=plain
+
+      - name: Publish Debug APK
+        uses: softprops/action-gh-release@v2
+        if: success()
+        with:
+          tag_name: debug
+          name: Debug Build
+          prerelease: true
+          body: |
+            手动 Debug 构建（commit `${{ github.sha }}`）
+
+            > ⚠️ 开发版本，可能不稳定，仅供测试。
+          files: app/build/outputs/apk/debug/*.apk
