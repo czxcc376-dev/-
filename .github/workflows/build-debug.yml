@@ -92,7 +92,7 @@ jobs:
       - name: Build Debug APK
         run: |
           chmod +x gradlew
-          ./gradlew :app:assembleDebug --no-daemon --console=plain
+          ./gradlew :app:assembleDebug --no-daemon --console=plain --parallel --build-cache -Dorg.gradle.workers.max=4
 
       - name: Publish Debug APK
         uses: softprops/action-gh-release@v2
