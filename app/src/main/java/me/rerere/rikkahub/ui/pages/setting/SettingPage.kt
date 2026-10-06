@@ -58,6 +58,7 @@ import me.rerere.hugeicons.stroke.LookTop
 import me.rerere.hugeicons.stroke.McpServer
 import me.rerere.hugeicons.stroke.Megaphone01
 import me.rerere.hugeicons.stroke.Package
+import me.rerere.hugeicons.stroke.Bug01
 import me.rerere.hugeicons.stroke.ServerStack01
 import me.rerere.hugeicons.stroke.Settings03
 import me.rerere.hugeicons.stroke.Share04
@@ -238,6 +239,12 @@ fun SettingPage(vm: SettingVM = koinViewModel()) {
                         leadingContent = { Icon(HugeIcons.McpServer, null) },
                         supportingContent = { Text(stringResource(R.string.setting_page_mcp_desc)) },
                         headlineContent = { Text(stringResource(R.string.setting_page_mcp)) },
+                    )
+                    item(
+                        onClick = { navController.navigate(Screen.SettingEnhanced) },
+                        leadingContent = { Icon(HugeIcons.Bug01, null) },
+                        supportingContent = { Text(stringResource(R.string.setting_enhanced_entry_desc)) },
+                        headlineContent = { Text(stringResource(R.string.setting_enhanced_entry)) },
                     )
                     item(
                         onClick = { navController.navigate(Screen.SettingWeb) },

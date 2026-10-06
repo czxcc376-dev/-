@@ -21,10 +21,8 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -38,7 +36,6 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import kotlinx.coroutines.delay
 import me.rerere.ai.ui.ToolApprovalState
 import me.rerere.ai.ui.UIMessage
 import me.rerere.ai.ui.UIMessagePart
@@ -61,7 +58,6 @@ import me.rerere.rikkahub.data.ai.tools.local.plan.parsePlanUserAnswer
 import me.rerere.rikkahub.data.ai.tools.local.plan.toView
 import me.rerere.rikkahub.data.ai.tools.local.plan.unmetDependencies
 import me.rerere.rikkahub.data.ai.tools.local.plan.treeWeightedProgress
-import me.rerere.rikkahub.data.ai.tools.local.plan.weightedProgress
 import me.rerere.rikkahub.data.model.Conversation
 import me.rerere.rikkahub.data.model.MessageNode
 
@@ -134,43 +130,14 @@ fun Conversation.findActivePlan(): ActivePlan? {
 @Composable
 fun PlanHudPanel(
     activePlan: ActivePlan?,
-    typing: Boolean,
     onJumpToPlan: (Int) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     if (activePlan == null) return
 
     val view = activePlan.view
+    // 默认折叠；只有用户主动点击 header 才会展开/折叠。任何状态变化都不自动展开。
     var expanded by rememberSaveable(activePlan.toolCallId) { mutableStateOf(false) }
-
-    val signature = buildString {
-        append(view.operation)
-        append('-')
-        append(view.doneCount)
-        append('/')
-        append(view.totalCount)
-        view.steps.forEach { append(it.status.name.first()) }
-    }
-    var lastSignature by remember(activePlan.toolCallId) { mutableStateOf("") }
-
-    // 计划有推进 -> 自动展开一小会儿；等待用户处理 -> 保持展开；用户开始打字 -> 收起。
-    LaunchedEffect(signature, activePlan.awaitingUser) {
-        if (signature != lastSignature) {
-            lastSignature = signature
-            expanded = true
-            if (!activePlan.awaitingUser) {
-                delay(3000)
-                expanded = false
-            }
-        }
-    }
-    LaunchedEffect(activePlan.awaitingUser) {
-        // 需要用户处理时自动展开；处理完后自动收起，保持输入区清爽。
-        expanded = activePlan.awaitingUser
-    }
-    LaunchedEffect(typing) {
-        if (typing) expanded = false
-    }
 
     PlanAmbientGlow(
         active = !activePlan.isPending && view.operation != InteractivePlanOperation.CANCEL,

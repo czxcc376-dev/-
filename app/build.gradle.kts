@@ -23,7 +23,7 @@ android {
     }
 
     defaultConfig {
-        applicationId = "me.rerere.rikkahub"
+        applicationId = "com.clbi.app"
         minSdk = 26
         targetSdk = 37
         versionCode = 191
@@ -106,6 +106,11 @@ android {
         jniLibs {
             useLegacyPackaging = true
             pickFirsts += "lib/*/libtermux.so"
+        }
+        resources {
+            // apktool-lib ships a prebuilt android-framework.jar as a resource; keep it packaged
+            pickFirsts += "prebuilt/**"
+            excludes += "META-INF/versions/9/module-info.class"
         }
     }
     tasks.withType<KotlinCompile>().configureEach {
@@ -294,6 +299,15 @@ dependencies {
 
     // sqlite-android (requery SQLite for Android)
     implementation(libs.sqlite.android)
+
+    // reverse engineering toolchain (bundled)
+    implementation(libs.smali)
+    implementation(libs.smali.baksmali)
+    implementation(libs.smali.dexlib2)
+    implementation(libs.smali.util)
+    implementation(libs.apktool.lib)
+    implementation(libs.jadx.core)
+    implementation(libs.jadx.dex.input)
 
     // modules
     implementation(project(":ai"))

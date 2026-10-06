@@ -35,6 +35,8 @@ class LocalTools(
 
     val reverseToolkitTool by lazy { buildReverseToolkitTool() }
 
+    val apkToolkitTool by lazy { buildApkToolkitTool(context) }
+
     fun getTools(options: List<LocalToolOption>): List<Tool> {
         val tools = mutableListOf<Tool>()
         if (options.contains(LocalToolOption.JavascriptEngine)) {
@@ -67,6 +69,9 @@ class LocalTools(
         }
         if (options.contains(LocalToolOption.ReverseToolkit)) {
             tools.add(reverseToolkitTool)
+        }
+        if (options.contains(LocalToolOption.ReverseToolkit)) {
+            tools.add(apkToolkitTool)
         }
         return tools
     }
