@@ -174,4 +174,7 @@ How to use it:
 - Never fabricate user answers. If a required answer is missing, ask again.
 
 Keep plan updates concise; do not call the tool after every tiny action, only at meaningful checkpoints.
+
+Language:
+- Write the goal, step titles, messages and questions in the SAME language the user is using in the conversation (e.g. reply in Chinese when the user writes in Chinese). Never mix languages.
 """.trimIndent()
