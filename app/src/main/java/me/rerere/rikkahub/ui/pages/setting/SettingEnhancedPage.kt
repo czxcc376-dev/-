@@ -1,10 +1,6 @@
 package me.rerere.rikkahub.ui.pages.setting
 
 import android.content.Intent
-import androidx.documentfile.provider.DocumentFile
-import me.rerere.rikkahub.data.files.ExternalMountCoordinator
-import me.rerere.rikkahub.data.files.ExternalMountManager
-import me.rerere.rikkahub.data.model.ExternalMount
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
@@ -45,7 +41,6 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import me.rerere.rikkahub.data.model.EXTERNAL_MOUNT_PREFIX
 import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.Bolt
 import me.rerere.hugeicons.stroke.Bug01
@@ -276,8 +271,6 @@ fun SettingEnhancedPage(
                 onToggle = ::setFeature,
                 onCleanSessions = { cleanAnalysisSessions(notify = true) },
             )
-
-            ExternalMountsSection()
 
             ToolWorkbench(
                 apkPath = apkPath,
@@ -516,111 +509,5 @@ private fun ToolWorkbench(
                 .fillMaxWidth()
                 .padding(8.dp),
         )
-    }
-}
-
-
-@Composable
-private fun ExternalMountsSection(
-    settingsStore: SettingsStore = koinInject(),
-    coordinator: ExternalMountCoordinator = koinInject(),
-) {
-    val context = LocalContext.current
-    val toaster = LocalToaster.current
-    val scope = rememberCoroutineScope()
-    var busy by remember { mutableStateOf(false) }
-
-    val settings by settingsStore.settingsFlow.collectAsStateWithLifecycle(
-        initialValue = settingsStore.settingsFlow.value,
-    )
-    val mounts = settings.externalMounts
-
-    fun persist(next: List<ExternalMount>) {
-        scope.launch {
-            settingsStore.update { it.copy(externalMounts = next) }
-            coordinator.refresh(settingsStore.settingsFlow.value)
-        }
-    }
-
-    val treePicker = rememberLauncherForActivityResult(
-        ActivityResultContracts.OpenDocumentTree()
-    ) { uri ->
-        if (uri == null) return@rememberLauncherForActivityResult
-        scope.launch {
-            try {
-                context.contentResolver.takePersistableUriPermission(
-                    uri,
-                    Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION,
-                )
-            } catch (_: Exception) {
-            }
-            val name = DocumentFile.fromTreeUri(context, uri)?.name ?: "外部目录"
-            val safe = name.replace(Regex("[^A-Za-z0-9_\u4e00-\u9fa5-]"), "_").take(24)
-            val id = kotlin.uuid.Uuid.random().toString().take(8)
-            val mount = ExternalMount(
-                id = id,
-                displayName = name,
-                treeUri = uri.toString(),
-                mirrorDirName = "${safe}_$id",
-                writable = true,
-            )
-            busy = true
-            val stats = withContext(Dispatchers.IO) { ExternalMountManager.syncIn(context, mount) }
-            persist(settingsStore.settingsFlow.value.externalMounts + mount)
-            busy = false
-            toaster.show("已挂载 $name -> $EXTERNAL_MOUNT_PREFIX/${mount.mirrorDirName}（${stats.files} 个文件）", type = ToastType.Success)
-        }
-    }
-
-    CardGroup(title = { Text("外部目录挂载") }) {
-        item(
-            leadingContent = { Icon(HugeIcons.Folder01, null) },
-            headlineContent = { Text("说明") },
-            supportingContent = {
-                Text("授权一个外部目录（如 Download），应用会镜像到私有目录并挂载为 $EXTERNAL_MOUNT_PREFIX/<名称>，AI 工具与终端可直接读写。")
-            },
-        )
-        item(
-            onClick = { treePicker.launch(null) },
-            leadingContent = { Icon(HugeIcons.PackageOpen, null) },
-            headlineContent = { Text(if (busy) "同步中…" else "授权并挂载目录") },
-            supportingContent = { Text("使用系统文件选择器授权文件夹，无需存储权限") },
-        )
-        mounts.forEach { mount ->
-            item(
-                leadingContent = { Icon(HugeIcons.Folder01, null) },
-                headlineContent = { Text(mount.displayName) },
-                supportingContent = {
-                    Text("$EXTERNAL_MOUNT_PREFIX/${mount.mirrorDirName}｜可写：${if (mount.writable) "是" else "否"}")
-                },
-                trailingContent = {
-                    Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                        OutlinedButton(onClick = {
-                            scope.launch {
-                                busy = true
-                                val s2 = withContext(Dispatchers.IO) { ExternalMountManager.syncIn(context, mount) }
-                                busy = false
-                                toaster.show("已导入 ${s2.files} 个文件", type = ToastType.Success)
-                            }
-                        }) { Text("导入") }
-                        OutlinedButton(onClick = {
-                            scope.launch {
-                                busy = true
-                                val s2 = withContext(Dispatchers.IO) { ExternalMountManager.syncOut(context, mount) }
-                                busy = false
-                                toaster.show("已回写 ${s2.files} 个文件", type = ToastType.Success)
-                            }
-                        }) { Text("回写") }
-                        OutlinedButton(onClick = {
-                            scope.launch {
-                                withContext(Dispatchers.IO) { ExternalMountManager.deleteMirror(context, mount) }
-                                persist(settingsStore.settingsFlow.value.externalMounts.filterNot { it.id == mount.id })
-                                toaster.show("已卸载 ${mount.displayName}", type = ToastType.Success)
-                            }
-                        }) { Text("卸载") }
-                    }
-                },
-            )
-        }
     }
 }

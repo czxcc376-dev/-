@@ -41,7 +41,6 @@ import me.rerere.rikkahub.data.datastore.migration.PreferenceStoreV1Migration
 import me.rerere.rikkahub.data.datastore.migration.PreferenceStoreV2Migration
 import me.rerere.rikkahub.data.datastore.migration.PreferenceStoreV3Migration
 import me.rerere.rikkahub.data.model.Assistant
-import me.rerere.rikkahub.data.model.ExternalMount
 import me.rerere.rikkahub.data.model.Avatar
 import me.rerere.rikkahub.data.model.InjectionPosition
 import me.rerere.rikkahub.data.model.Lorebook
@@ -176,9 +175,6 @@ class SettingsStore(
         val LOREBOOKS = stringPreferencesKey("lorebooks")
         val QUICK_MESSAGES = stringPreferencesKey("quick_messages")
 
-        // 外部目录挂载
-        val EXTERNAL_MOUNTS = stringPreferencesKey("external_mounts")
-
         // 备份提醒
         val BACKUP_REMINDER_CONFIG = stringPreferencesKey("backup_reminder_config")
 
@@ -244,7 +240,6 @@ class SettingsStore(
                 preferences[MODE_INJECTIONS] = JsonInstant.encodeToString(settings.modeInjections)
                 preferences[LOREBOOKS] = JsonInstant.encodeToString(settings.lorebooks)
                 preferences[QUICK_MESSAGES] = JsonInstant.encodeToString(settings.quickMessages)
-                preferences[EXTERNAL_MOUNTS] = JsonInstant.encodeToString(settings.externalMounts)
                 preferences[WEB_SERVER_ENABLED] = settings.webServerEnabled
                 preferences[WEB_SERVER_PORT] = settings.webServerPort
                 preferences[WEB_SERVER_JWT_ENABLED] = settings.webServerJwtEnabled
@@ -338,9 +333,6 @@ class SettingsStore(
                     JsonInstant.decodeFromString(it)
                 } ?: emptyList(),
                 lorebooks = preferences[LOREBOOKS]?.let {
-                    JsonInstant.decodeFromString(it)
-                } ?: emptyList(),
-                externalMounts = preferences[EXTERNAL_MOUNTS]?.let {
                     JsonInstant.decodeFromString(it)
                 } ?: emptyList(),
                 quickMessages = preferences[QUICK_MESSAGES]?.let {
@@ -614,7 +606,6 @@ data class Settings(
     val webServerJwtEnabled: Boolean = false,
     val webServerAccessPassword: String = "",
     val webServerLocalhostOnly: Boolean = false,
-    val externalMounts: List<ExternalMount> = emptyList(),
     val backupReminderConfig: BackupReminderConfig = BackupReminderConfig(),
     val launchCount: Int = 0,
     val sponsorAlertDismissedAt: Int = 0,

@@ -17,7 +17,6 @@ import kotlinx.coroutines.CoroutineName
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import me.rerere.rikkahub.data.files.FileFolders
-import me.rerere.rikkahub.data.files.ExternalMountCoordinator
 import me.rerere.rikkahub.data.files.SkillManager
 import java.io.File
 import kotlinx.coroutines.SupervisorJob
@@ -101,9 +100,6 @@ class RikkaHubApp : Application() {
             // check workspace integrity (mark workspaces with missing files as broken)
             checkWorkspaceIntegrity()
 
-            // re-apply external directory mounts (refresh mirrors + bind mounts)
-            refreshExternalMounts()
-
             // sync upload files to DB
             syncManagedFiles()
 
@@ -118,17 +114,6 @@ class RikkaHubApp : Application() {
         }
 
         // Composer.setDiagnosticStackTraceMode(ComposeStackTraceMode.Auto)
-    }
-
-    /** 重新应用外部目录挂载：刷新镜像并更新工作区挂载表。 */
-    private fun refreshExternalMounts() {
-        try {
-            val store = get<SettingsStore>()
-            val coordinator = get<ExternalMountCoordinator>()
-            coordinator.refresh(store.settingsFlow.value)
-        } catch (e: Exception) {
-            Log.e(TAG, "refreshExternalMounts failed", e)
-        }
     }
 
     private fun incrementLaunchCount() {
