@@ -342,18 +342,20 @@ private fun ChatPageContent(
                 val activePlan: ActivePlan? = remember(conversation.messageNodes) {
                     conversation.findActivePlan()
                 }
-                val typing = inputState.textContent.text.isNotBlank()
-                PlanHudPanel(
-                    activePlan = activePlan,
-                    typing = typing,
-                    onJumpToPlan = { nodeIndex ->
-                        scope.launch {
-                            chatListState.requestScrollToItem(nodeIndex)
-                        }
-                    },
-                )
-
                 ChatInput(
+                    // HUD 作为输入框的 header 参与同一套布局与内边距，避免与输入框重叠。
+                    // typing 在 header 内部读取，只有 HUD 会因按键重组，不影响整个输入框。
+                    header = {
+                        PlanHudPanel(
+                            activePlan = activePlan,
+                            typing = inputState.textContent.text.isNotBlank(),
+                            onJumpToPlan = { nodeIndex ->
+                                scope.launch {
+                                    chatListState.requestScrollToItem(nodeIndex)
+                                }
+                            },
+                        )
+                    },
                     onStartVoiceMode = onStartVoiceMode,
                     voiceState = voiceState,
                     onStopVoiceMode = vm.voiceSession::stop,
