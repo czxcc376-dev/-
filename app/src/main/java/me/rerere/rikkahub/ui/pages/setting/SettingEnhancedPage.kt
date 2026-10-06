@@ -45,6 +45,7 @@ import me.rerere.hugeicons.stroke.Bolt
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.Screen
 import me.rerere.rikkahub.data.ai.tools.local.ApkToolkitTool
+import me.rerere.rikkahub.data.ai.tools.local.executeForAction
 import me.rerere.rikkahub.data.datastore.SettingsStore
 import me.rerere.rikkahub.data.datastore.getCurrentAssistant
 import me.rerere.rikkahub.data.files.FilesManager
