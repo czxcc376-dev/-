@@ -123,6 +123,14 @@ import org.koin.compose.koinInject
 import kotlin.time.Duration.Companion.seconds
 import me.rerere.rikkahub.ui.pages.chat.VoicePhase
 import me.rerere.rikkahub.ui.pages.chat.VoiceSessionState
+import com.kyant.backdrop.backdrops.LayerBackdrop
+import com.kyant.backdrop.backdrops.rememberLayerBackdrop
+import com.kyant.backdrop.backdrops.layerBackdrop
+import com.kyant.backdrop.drawBackdrop
+import com.kyant.backdrop.effects.blur
+import com.kyant.backdrop.effects.lens
+import com.kyant.backdrop.effects.vibrancy
+import com.kyant.backdrop.Backdrop
 import kotlin.uuid.Uuid
 
 @Composable
@@ -131,6 +139,7 @@ fun ChatInput(
     loading: Boolean,
     settings: Settings,
     hazeState: HazeState,
+    backdrop: LayerBackdrop? = null,
     enableSearch: Boolean,
     onUpdateSearchMode: (SearchMode) -> Unit,
     modifier: Modifier = Modifier,
@@ -251,20 +260,41 @@ fun ChatInput(
                                     input = HazeInput.Sources(hazeState),
                                     style = inputHazeStyle,
                                 )
-                                BackgroundEffectType.GLASS -> Modifier.hazeGlass(
-                                    input = HazeInput.Sources(hazeState),
-                                    style = GlassStyle.Material3(
-                                        containerColor = hazeTintColor,
-                                        tint = hazeTintColor.copy(alpha = glassAlpha * 0.6f),
-                                    ) {
-                                        // Keep background text from competing with the input text.
-                                        optics(GlassDefaults.optics.copy(
-                                            blurRadius = OpticalSizeValue.Fixed((8.dp.value + glassAlpha * 12f).dp),
-                                            depth = OpticalSizeValue.Fixed(glassAlpha),
-                                        ))
-                                        shape(containerShape)
-                                    },
-                                )
+                                BackgroundEffectType.GLASS -> {
+                                    if (backdrop != null) {
+                                        Modifier.drawBackdrop(
+                                            backdrop = backdrop,
+                                            shape = { containerShape },
+                                            effects = {
+                                                vibrancy()
+                                                blur((4.dp.value + glassAlpha * 8f).dp.toPx())
+                                                lens(
+                                                    refractionHeight = 8.dp.value.dp.toPx(),
+                                                    refractionAmount = (12.dp.value + glassAlpha * 16f).dp.toPx(),
+                                                    depthEffect = true,
+                                                    chromaticAberration = false,
+                                                )
+                                            },
+                                            layerBlock = {
+                                                alpha = glassAlpha * 0.3f
+                                            },
+                                        )
+                                    } else {
+                                        Modifier.hazeGlass(
+                                            input = HazeInput.Sources(hazeState),
+                                            style = GlassStyle.Material3(
+                                                containerColor = hazeTintColor,
+                                                tint = hazeTintColor.copy(alpha = glassAlpha * 0.6f),
+                                            ) {
+                                                optics(GlassDefaults.optics.copy(
+                                                    blurRadius = OpticalSizeValue.Fixed((8.dp.value + glassAlpha * 12f).dp),
+                                                    depth = OpticalSizeValue.Fixed(glassAlpha),
+                                                ))
+                                                shape(containerShape)
+                                            },
+                                        )
+                                    }
+                                }
                             }
                         } else Modifier
                     ),

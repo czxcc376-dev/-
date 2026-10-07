@@ -96,6 +96,14 @@ import dev.chrisbanes.haze.HazeInput
 import dev.chrisbanes.haze.blur.HazeBlurStyle
 import dev.chrisbanes.haze.blur.material3.Material3
 import dev.chrisbanes.haze.blur.hazeBlur
+import com.kyant.backdrop.backdrops.LayerBackdrop
+import com.kyant.backdrop.backdrops.rememberLayerBackdrop
+import com.kyant.backdrop.backdrops.layerBackdrop
+import com.kyant.backdrop.drawBackdrop
+import com.kyant.backdrop.effects.blur
+import com.kyant.backdrop.effects.lens
+import com.kyant.backdrop.effects.vibrancy
+import androidx.compose.ui.graphics.RectangleShape
 import kotlin.uuid.Uuid
 
 @Composable
@@ -290,6 +298,7 @@ private fun ChatPageContent(
     val workspaceRepository: WorkspaceRepository = koinInject()
     var previewMode by rememberSaveable { mutableStateOf(false) }
     val hazeState = rememberHazeState()
+    val layerBackdrop = rememberLayerBackdrop()
     val assistant = setting.getCurrentAssistant()
     var showFilesSheet by remember { mutableStateOf(false) }
     val attachmentPickerActions = rememberChatAttachmentPickerActions(
@@ -318,7 +327,12 @@ private fun ChatPageContent(
         color = MaterialTheme.colorScheme.background,
         modifier = Modifier.fillMaxSize()
     ) {
-        AssistantBackground(setting = setting, modifier = Modifier.hazeSource(hazeState))
+        AssistantBackground(
+            setting = setting,
+            modifier = Modifier
+                .layerBackdrop(layerBackdrop)
+                .hazeSource(hazeState),
+        )
         Scaffold(
             topBar = {
                 Surface(
@@ -330,9 +344,21 @@ private fun ChatPageContent(
                         .fillMaxWidth()
                         .then(
                             if (setting.displaySetting.enableBlurEffect && !setting.displaySetting.performanceMode) {
-                                Modifier.hazeBlur(
-                                    input = HazeInput.Sources(hazeState),
-                                    style = HazeBlurStyle.Material3 { blurRadius(20.dp) },
+                                Modifier.drawBackdrop(
+                                    backdrop = layerBackdrop,
+                                    shape = { RectangleShape },
+                                    effects = {
+                                        blur(20f)
+                                        vibrancy()
+                                        lens(
+                                            refractionHeight = 4f,
+                                            refractionAmount = 8f,
+                                            depthEffect = false,
+                                        )
+                                    },
+                                    layerBlock = {
+                                        alpha = 0.15f
+                                    },
                                 )
                             } else Modifier
                         ),
@@ -387,6 +413,7 @@ private fun ChatPageContent(
                     loading = loadingJob != null,
                     settings = setting,
                     hazeState = hazeState,
+                    backdrop = layerBackdrop,
                     completionProviders = completionProviders,
                     onCancelClick = {
                         vm.stopGeneration()
