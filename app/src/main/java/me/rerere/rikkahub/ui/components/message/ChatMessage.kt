@@ -136,21 +136,15 @@ fun ChatMessage(
     val navController = LocalNavController.current
     val context = LocalContext.current
     val colorScheme = MaterialTheme.colorScheme
-    val messageKey = remember(message.id) { message.id }
-    var hasAppeared by remember(messageKey) { mutableStateOf(false) }
-    LaunchedEffect(messageKey) {
-        hasAppeared = true
-    }
-
     AnimatedVisibility(
-        visible = hasAppeared,
+        visible = true,
         enter = scaleIn(
             animationSpec = spring(
                 dampingRatio = Spring.DampingRatioMediumBouncy,
                 stiffness = Spring.StiffnessMedium,
             ),
             initialScale = 0.95f,
-        ) + fadeIn(animationSpec = spring(stiffness = Spring.StiffnessMedium)),
+        ) + fadeIn(),
     ) {
     Column(
         modifier = modifier.fillMaxWidth(),

@@ -66,6 +66,7 @@ import androidx.compose.animation.core.Spring
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.foundation.layout.Box
 import androidx.compose.runtime.LaunchedEffect
+import kotlinx.coroutines.delay
 import me.rerere.rikkahub.data.model.MessageNode
 
 private const val PLAN_TOOL_NAME = "interactive_plan"
@@ -421,8 +422,8 @@ private fun leadingStatus(view: InteractivePlanView): PlanStepStatus = when {
 /**
  * 计划步骤的状态图形。
  *
- * 几何状态（待处理的圆环 / 进行中的圆弧 / 已跳过的短横）用 Canvas 实时绘制，
- * 具备完成 / 阻塞语义的两态使用 HugeIcons（非 Material 图标集）。
+ * 几何状态用 Canvas 绘制，完成/阻塞用 HugeIcons。
+ * 状态变化时带 spring 弹跳动画。
  */
 @Composable
 fun PlanStatusGlyph(
@@ -433,92 +434,90 @@ fun PlanStatusGlyph(
     val trackColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.35f)
     val activeColor = MaterialTheme.colorScheme.primary
 
-    // Bounce animation when status changes
-    val scale by animateFloatAsState(
-        targetValue = 1f,
-        animationSpec = spring(
-            dampingRatio = Spring.DampingRatioMediumBouncy,
-            stiffness = Spring.StiffnessMedium,
-        ),
-        label = "statusScale",
-    )
-    // Reset the animation each time status changes
-    var lastStatus by remember { mutableStateOf(status) }
+    // Bounce animation on status change: briefly scale up then settle
+    var isBouncing by remember { mutableStateOf(false) }
     LaunchedEffect(status) {
-        if (lastStatus != status) {
-            lastStatus = status
-        }
+        isBouncing = true
+        delay(350)
+        isBouncing = false
     }
-    val bounceScale = if (lastStatus == status) scale else 1f
+    val animatedScale by androidx.compose.animation.core.animateFloatAsState(
+        targetValue = if (isBouncing) 1.25f else 1f,
+        animationSpec = androidx.compose.animation.core.spring(
+            dampingRatio = androidx.compose.animation.core.Spring.DampingRatioMediumBouncy,
+            stiffness = androidx.compose.animation.core.Spring.StiffnessMedium,
+        ),
+        label = "statusBounce",
+    )
 
     Box(
         modifier = modifier
             .size(size)
             .graphicsLayer {
-                scaleX = bounceScale
-                scaleY = bounceScale
+                scaleX = animatedScale
+                scaleY = animatedScale
             }
     ) {
         when (status) {
-        PlanStepStatus.COMPLETED -> Icon(
-            imageVector = HugeIcons.Tick02,
-            contentDescription = null,
-            modifier = modifier.size(size),
-            tint = MaterialTheme.colorScheme.tertiary,
-        )
-
-        PlanStepStatus.BLOCKED -> Icon(
-            imageVector = HugeIcons.Alert01,
-            contentDescription = null,
-            modifier = modifier.size(size),
-            tint = MaterialTheme.colorScheme.error,
-        )
-
-        PlanStepStatus.PENDING -> Canvas(modifier = modifier.size(size)) {
-            val sw = 1.5.dp.toPx()
-            drawCircle(
-                color = trackColor,
-                radius = this.size.minDimension / 2 - sw,
-                style = Stroke(width = sw),
+            PlanStepStatus.COMPLETED -> Icon(
+                imageVector = HugeIcons.Tick02,
+                contentDescription = null,
+                modifier = Modifier.size(size),
+                tint = MaterialTheme.colorScheme.tertiary,
             )
-        }
 
-        PlanStepStatus.SKIPPED -> Canvas(modifier = modifier.size(size)) {
-            drawLine(
-                color = trackColor,
-                start = Offset(this.size.width * 0.22f, this.size.height / 2),
-                end = Offset(this.size.width * 0.78f, this.size.height / 2),
-                strokeWidth = 1.5.dp.toPx(),
-                cap = StrokeCap.Round,
+            PlanStepStatus.BLOCKED -> Icon(
+                imageVector = HugeIcons.Alert01,
+                contentDescription = null,
+                modifier = Modifier.size(size),
+                tint = MaterialTheme.colorScheme.error,
             )
-        }
 
-        PlanStepStatus.IN_PROGRESS -> {
-            val transition = rememberInfiniteTransition(label = "planGlyph")
-            val angle by transition.animateFloat(
-                initialValue = 0f,
-                targetValue = 360f,
-                animationSpec = infiniteRepeatable(tween(durationMillis = 1100, easing = LinearEasing)),
-                label = "angle",
-            )
-            Canvas(modifier = modifier.size(size)) {
-                val sw = 2.dp.toPx()
+            PlanStepStatus.PENDING -> Canvas(modifier = Modifier.size(size)) {
+                val sw = 1.5.dp.toPx()
                 drawCircle(
                     color = trackColor,
-                    radius = this.size.minDimension / 2 - sw / 2,
+                    radius = this.size.minDimension / 2 - sw,
                     style = Stroke(width = sw),
                 )
-                drawArc(
-                    color = activeColor,
-                    startAngle = angle,
-                    sweepAngle = 280f,
-                    useCenter = false,
-                    topLeft = Offset(sw / 2, sw / 2),
-                    size = Size(this.size.width - sw, this.size.height - sw),
-                    style = Stroke(width = sw, cap = StrokeCap.Round),
+            }
+
+            PlanStepStatus.SKIPPED -> Canvas(modifier = Modifier.size(size)) {
+                drawLine(
+                    color = trackColor,
+                    start = Offset(this.size.width * 0.22f, this.size.height / 2),
+                    end = Offset(this.size.width * 0.78f, this.size.height / 2),
+                    strokeWidth = 1.5.dp.toPx(),
+                    cap = StrokeCap.Round,
                 )
             }
+
+            PlanStepStatus.IN_PROGRESS -> {
+                val transition = rememberInfiniteTransition(label = "planGlyph")
+                val angle by transition.animateFloat(
+                    initialValue = 0f,
+                    targetValue = 360f,
+                    animationSpec = infiniteRepeatable(tween(durationMillis = 1100, easing = LinearEasing)),
+                    label = "angle",
+                )
+                Canvas(modifier = Modifier.size(size)) {
+                    val sw = 2.dp.toPx()
+                    drawCircle(
+                        color = trackColor,
+                        radius = this.size.minDimension / 2 - sw / 2,
+                        style = Stroke(width = sw),
+                    )
+                    drawArc(
+                        color = activeColor,
+                        startAngle = angle,
+                        sweepAngle = 280f,
+                        useCenter = false,
+                        topLeft = Offset(sw / 2, sw / 2),
+                        size = Size(this.size.width - sw, this.size.height - sw),
+                        style = Stroke(width = sw, cap = StrokeCap.Round),
+                    )
+                }
+            }
         }
-    }
     }
 }
