@@ -4,7 +4,7 @@ import android.content.Intent
 import android.net.Uri
 import android.os.Build
 import android.os.Environment
-import android.provider.Settings
+import android.provider.Settings as AndroidSettings
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
@@ -55,7 +55,7 @@ import me.rerere.hugeicons.stroke.PackageOpen
 import me.rerere.hugeicons.stroke.Search01
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.Screen
-import me.rerere.rikkahub.data.datastore.Settings
+import me.rerere.rikkahub.data.datastore.Settings as ClbiSettings
 import me.rerere.rikkahub.data.ai.tools.local.ApkToolkitTool
 import me.rerere.rikkahub.data.ai.tools.local.LocalToolOption
 import me.rerere.rikkahub.data.ai.tools.local.executeForAction
@@ -304,8 +304,8 @@ fun SettingEnhancedPage(
 
 @Composable
 private fun BreakerSettingsCard(
-    settings: Settings,
-    onUpdate: ((Settings) -> Settings) -> Unit,
+    settings: ClbiSettings,
+    onUpdate: ((ClbiSettings) -> ClbiSettings) -> Unit,
 ) {
     CardGroup(title = { Text("AI 破甲") }) {
         item(
@@ -367,15 +367,15 @@ private fun StorageAccessCard() {
         }
         try {
             val intent = if (Build.VERSION.SDK_INT >= 30) {
-                Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION)
+                Intent(AndroidSettings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION)
                     .setData(Uri.parse("package:" + context.packageName))
             } else {
-                Intent(Settings.ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION)
+                Intent(AndroidSettings.ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION)
             }
             context.startActivity(intent)
         } catch (_: Exception) {
             runCatching {
-                context.startActivity(Intent(Settings.ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION))
+                context.startActivity(Intent(AndroidSettings.ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION))
             }
         }
     }
