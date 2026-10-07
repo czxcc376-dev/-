@@ -202,6 +202,7 @@ dependencies {
     implementation(libs.haze.blur.material3)
     implementation(libs.haze.glass)
     implementation(libs.haze.glass.material3)
+    implementation(libs.backdrop)
 
     // koin
     implementation(platform(libs.koin.bom))
