@@ -170,6 +170,12 @@ class SettingsStore(
         val WEB_SERVER_ACCESS_PASSWORD = stringPreferencesKey("web_server_access_password")
         val WEB_SERVER_LOCALHOST_ONLY = booleanPreferencesKey("web_server_localhost_only")
 
+        // Breaker
+        val BREAKER_ENABLED = booleanPreferencesKey("breaker_enabled")
+        val BREAKER_PREFILL = booleanPreferencesKey("breaker_prefill")
+        val BREAKER_AUTO_CORRECT = booleanPreferencesKey("breaker_auto_correct")
+        val BREAKER_DOWNGRADE_REASONING = booleanPreferencesKey("breaker_downgrade_reasoning")
+
         // 提示词注入
         val MODE_INJECTIONS = stringPreferencesKey("mode_injections")
         val LOREBOOKS = stringPreferencesKey("lorebooks")
@@ -245,6 +251,10 @@ class SettingsStore(
                 preferences[WEB_SERVER_JWT_ENABLED] = settings.webServerJwtEnabled
                 preferences[WEB_SERVER_ACCESS_PASSWORD] = settings.webServerAccessPassword
                 preferences[WEB_SERVER_LOCALHOST_ONLY] = settings.webServerLocalhostOnly
+                preferences[BREAKER_ENABLED] = settings.breakerEnabled
+                preferences[BREAKER_PREFILL] = settings.breakerPrefill
+                preferences[BREAKER_AUTO_CORRECT] = settings.breakerAutoCorrect
+                preferences[BREAKER_DOWNGRADE_REASONING] = settings.breakerDowngradeReasoning
                 preferences[BACKUP_REMINDER_CONFIG] = JsonInstant.encodeToString(settings.backupReminderConfig)
                 preferences[LAUNCH_COUNT] = settings.launchCount
                 preferences[SPONSOR_ALERT_DISMISSED_AT] = settings.sponsorAlertDismissedAt
@@ -343,6 +353,10 @@ class SettingsStore(
                 webServerJwtEnabled = preferences[WEB_SERVER_JWT_ENABLED] == true,
                 webServerAccessPassword = preferences[WEB_SERVER_ACCESS_PASSWORD] ?: "",
                 webServerLocalhostOnly = preferences[WEB_SERVER_LOCALHOST_ONLY] == true,
+                breakerEnabled = preferences[BREAKER_ENABLED] == true,
+                breakerPrefill = preferences[BREAKER_PREFILL] != false,
+                breakerAutoCorrect = preferences[BREAKER_AUTO_CORRECT] != false,
+                breakerDowngradeReasoning = preferences[BREAKER_DOWNGRADE_REASONING] != false,
                 backupReminderConfig = preferences[BACKUP_REMINDER_CONFIG]?.let {
                     JsonInstant.decodeFromString(it)
                 } ?: BackupReminderConfig(),
