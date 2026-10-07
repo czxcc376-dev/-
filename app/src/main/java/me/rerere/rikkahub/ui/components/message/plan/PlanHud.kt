@@ -105,11 +105,19 @@ fun Conversation.findActivePlan(): ActivePlan? {
                 ?.text
                 ?.let { decodePlanSnapshot(it) }
                 ?.toView()
+            val answeredView = if (state is ToolApprovalState.Answered) {
+                buildPlanView(request, parsePlanUserAnswer(state.answer))
+            } else null
+            val initialView = buildPlanView(request, null)
             val view = when {
-                snapshotView != null -> snapshotView
-                state is ToolApprovalState.Answered ->
-                    buildPlanView(request, parsePlanUserAnswer(state.answer))
-                else -> buildPlanView(request, null)
+                // Snapshot has steps: use it (it's the most recent data)
+                snapshotView != null && snapshotView.steps.isNotEmpty() -> snapshotView
+                // Snapshot exists but empty steps: fall back to answered or initial view
+                snapshotView != null && answeredView != null && answeredView.steps.isNotEmpty() -> answeredView
+                snapshotView != null && initialView.steps.isNotEmpty() -> initialView
+                // No snapshot: use answered or initial
+                answeredView != null && answeredView.steps.isNotEmpty() -> answeredView
+                else -> initialView
             }
             if (view.operation == InteractivePlanOperation.CANCEL) return null
 

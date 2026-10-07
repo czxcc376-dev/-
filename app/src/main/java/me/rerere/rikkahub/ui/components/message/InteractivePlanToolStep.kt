@@ -113,13 +113,21 @@ fun ChainOfThoughtScope.InteractivePlanToolStep(
             ?.text
             ?.let { decodePlanSnapshot(it) }
             ?.toView()
+        val answeredView = if (state is ToolApprovalState.Answered) {
+            buildPlanView(initialRequest, parsePlanUserAnswer(state.answer))
+        } else null
 
         when {
+            // Snapshot has steps: use it (most recent data)
+            snapshotView != null && snapshotView.steps.isNotEmpty() -> snapshotView
+            // Snapshot exists but empty steps: fall back to answered view
+            snapshotView != null && answeredView != null && answeredView.steps.isNotEmpty() -> answeredView
+            // Answered view has steps
+            answeredView != null && answeredView.steps.isNotEmpty() -> answeredView
+            // Snapshot exists but no fallback has steps: still use snapshot (it has at least a goal)
             snapshotView != null -> snapshotView
-
-            state is ToolApprovalState.Answered ->
-                buildPlanView(initialRequest, parsePlanUserAnswer(state.answer))
-
+            // Answered view exists but might have empty steps: use it if it has a goal
+            answeredView != null -> answeredView
             else -> null
         }
     }
