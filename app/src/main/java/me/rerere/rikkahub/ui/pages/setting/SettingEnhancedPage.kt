@@ -331,7 +331,7 @@ private fun BreakerSettingsCard(
         )
         item(
             headlineContent = { Text("自动纠正（拒绝检测重试）") },
-            supportingContent = { Text("检测到拒绝回复（硬拒/法律说教/软拒）时自动注入纠正指令重新生成，最多 2 轮，全场景覆盖") },
+            supportingContent = { Text("检测到拒绝回复（硬拒/法律说教/软拒/改道式软拒）时自动注入纠正指令重新生成，最多 2 轮，全场景覆盖") },
             trailingContent = {
                 Switch(
                     checked = settings.breakerAutoCorrect,
