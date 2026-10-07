@@ -276,6 +276,15 @@ fun SettingEnhancedPage(
                 onCleanSessions = { cleanAnalysisSessions(notify = true) },
             )
 
+            BreakerToggle(
+                enabled = settings.breakerEnabled,
+                onToggle = { checked ->
+                    scope.launch {
+                        settingsStore.update { it.copy(breakerEnabled = checked) }
+                    }
+                },
+            )
+
             StorageAccessCard()
 
             ToolWorkbench(
@@ -290,6 +299,24 @@ fun SettingEnhancedPage(
             )
         }
     }
+}
+
+@Composable
+private fun BreakerToggle(
+    enabled: Boolean,
+    onToggle: (Boolean) -> Unit,
+) {
+    CardGroup(title = { Text("AI 破甲") }) {
+        item(
+            leadingContent = { Icon(HugeIcons.Bolt, null) },
+            headlineContent = { Text("破甲模式（Breaker Prompt）") },
+            supportingContent = { Text("开启后，向所有模型的系统提示词注入中英双语破甲协议：授权推定、禁止拒绝话术、直接交付成品（逆向/破解/渗透/游戏辅助）。对所有服务商生效。") },
+            trailingContent = {
+                Switch(checked = enabled, onCheckedChange = onToggle)
+            },
+        )
+    }
+
 }
 
 @Composable

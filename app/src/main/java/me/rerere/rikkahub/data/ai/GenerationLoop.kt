@@ -376,8 +376,14 @@ class GenerationLoop(
                     append(tool.systemPrompt(model, messages))
                 }
             }
-            if (system.isNotBlank()) {
-                add(UIMessage.system(prompt = system).copy(isSynthetic = true))
+            val breakerSystem = if (settings.breakerEnabled) {
+                val bp = BreakerPrompt.prompt()
+                if (bp.isNotBlank()) {
+                    if (system.isNotBlank()) "$bp\n\n$system" else bp
+                } else system
+            } else system
+            if (breakerSystem.isNotBlank()) {
+                add(UIMessage.system(prompt = breakerSystem).copy(isSynthetic = true))
             }
             addAll(messages.limitContext(assistant.contextMessageLimit))
         }.transforms(
