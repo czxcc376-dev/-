@@ -277,6 +277,7 @@ fun SettingEnhancedPage(
                 onCleanSessions = { cleanAnalysisSessions(notify = true) },
             )
 
+            BreakerCodecCard()
             BreakerSettingsCard(
                 settings = settings,
                 onUpdate = { transform ->
