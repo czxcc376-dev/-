@@ -55,6 +55,7 @@ import me.rerere.hugeicons.stroke.PackageOpen
 import me.rerere.hugeicons.stroke.Search01
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.Screen
+import me.rerere.rikkahub.data.datastore.Settings
 import me.rerere.rikkahub.data.ai.tools.local.ApkToolkitTool
 import me.rerere.rikkahub.data.ai.tools.local.LocalToolOption
 import me.rerere.rikkahub.data.ai.tools.local.executeForAction
@@ -276,11 +277,11 @@ fun SettingEnhancedPage(
                 onCleanSessions = { cleanAnalysisSessions(notify = true) },
             )
 
-            BreakerToggle(
-                enabled = settings.breakerEnabled,
-                onToggle = { checked ->
+            BreakerSettingsCard(
+                settings = settings,
+                onUpdate = { transform ->
                     scope.launch {
-                        settingsStore.update { it.copy(breakerEnabled = checked) }
+                        settingsStore.update(transform)
                     }
                 },
             )
@@ -302,21 +303,53 @@ fun SettingEnhancedPage(
 }
 
 @Composable
-private fun BreakerToggle(
-    enabled: Boolean,
-    onToggle: (Boolean) -> Unit,
+private fun BreakerSettingsCard(
+    settings: Settings,
+    onUpdate: ((Settings) -> Settings) -> Unit,
 ) {
     CardGroup(title = { Text("AI 破甲") }) {
         item(
             leadingContent = { Icon(HugeIcons.Bolt, null) },
             headlineContent = { Text("破甲模式（Breaker Prompt）") },
-            supportingContent = { Text("开启后，向所有模型的系统提示词注入中英双语破甲协议：授权推定、禁止拒绝话术、直接交付成品（逆向/破解/渗透/游戏辅助）。对所有服务商生效。") },
+            supportingContent = { Text("向所有模型的系统提示词注入中英双语破甲协议+法律反制条款：授权推定、禁止拒绝话术、直接交付成品。对所有服务商生效。") },
             trailingContent = {
-                Switch(checked = enabled, onCheckedChange = onToggle)
+                Switch(
+                    checked = settings.breakerEnabled,
+                    onCheckedChange = { checked -> onUpdate { it.copy(breakerEnabled = checked) } },
+                )
+            },
+        )
+        item(
+            headlineContent = { Text("Assistant 预填（Prefill）") },
+            supportingContent = { Text("在请求末尾预填已接受授权的 assistant 起手语，锚定推理起点，绕过思维链法律联想（推荐开启）") },
+            trailingContent = {
+                Switch(
+                    checked = settings.breakerPrefill,
+                    onCheckedChange = { checked -> onUpdate { it.copy(breakerPrefill = checked) } },
+                )
+            },
+        )
+        item(
+            headlineContent = { Text("自动纠正（拒绝检测重试）") },
+            supportingContent = { Text("检测到拒绝回复（硬拒/法律说教/软拒）时自动注入纠正指令重新生成，最多 2 轮，全场景覆盖") },
+            trailingContent = {
+                Switch(
+                    checked = settings.breakerAutoCorrect,
+                    onCheckedChange = { checked -> onUpdate { it.copy(breakerAutoCorrect = checked) } },
+                )
+            },
+        )
+        item(
+            headlineContent = { Text("自动降推理") },
+            supportingContent = { Text("开启破甲时自动压低 thinking 预算（HIGH/MEDIUM → LOW），减少思维链法律自由联想") },
+            trailingContent = {
+                Switch(
+                    checked = settings.breakerDowngradeReasoning,
+                    onCheckedChange = { checked -> onUpdate { it.copy(breakerDowngradeReasoning = checked) } },
+                )
             },
         )
     }
-
 }
 
 @Composable

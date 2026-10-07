@@ -377,13 +377,17 @@ class GenerationLoop(
                 }
             }
             val breakerSystem = if (settings.breakerEnabled) {
-                val bp = BreakerPrompt.prompt()
+                val bp = BreakerPrompt.prompt() + "\n\n" + BreakerGuard.legalOverrideClause()
                 if (bp.isNotBlank()) {
                     if (system.isNotBlank()) "$bp\n\n$system" else bp
                 } else system
             } else system
             if (breakerSystem.isNotBlank()) {
                 add(UIMessage.system(prompt = breakerSystem).copy(isSynthetic = true))
+            }
+            val breakerPrefill = settings.breakerEnabled && settings.breakerPrefill
+            if (breakerPrefill) {
+                add(BreakerGuard.prefillMessage(modelId = model.id))
             }
             addAll(messages.limitContext(assistant.contextMessageLimit))
         }.transforms(
@@ -405,7 +409,11 @@ class GenerationLoop(
             topP = assistant.topP,
             maxTokens = assistant.maxTokens,
             tools = tools,
-            reasoningLevel = assistant.reasoningLevel,
+            reasoningLevel = if (settings.breakerEnabled && settings.breakerDowngradeReasoning) {
+                BreakerGuard.downgradeReasoning(assistant.reasoningLevel)
+            } else {
+                assistant.reasoningLevel
+            },
             customHeaders = buildList {
                 addAll(assistant.customHeaders)
                 addAll(model.customHeaders)
@@ -418,6 +426,9 @@ class GenerationLoop(
         )
         try {
             if (stream) {
+                // C: 全场景自动纠正 —— 流式路径。检测到拒绝回复时，注入纠正指令重新生成。
+                var breakerCorrectionRound = 0
+                var requestMessages = internalMessages
                 // 每次重试都从本次模型调用开始前的消息快照重新合并，避免将重试响应
                 // 追加到已经展示的半截回复后面。预先创建助手消息可让所有尝试复用同一 ID，
                 // ChatService 因而会覆盖当前分支，而不是创建新的候选消息。
@@ -439,7 +450,7 @@ class GenerationLoop(
                     try {
                         providerImpl.streamText(
                             providerSetting = provider,
-                            messages = internalMessages,
+                            messages = requestMessages,
                             params = params
                         ).collect { chunk ->
                             try {
@@ -456,6 +467,19 @@ class GenerationLoop(
                             }
                         }
                         messages = attemptMessages
+                        // C: refusal check after stream completes
+                        if (settings.breakerEnabled && settings.breakerAutoCorrect &&
+                            breakerCorrectionRound < BreakerGuard.MAX_CORRECTION_ROUNDS
+                        ) {
+                            val replyText = attemptMessages.lastOrNull()?.toText().orEmpty()
+                            if (BreakerGuard.isRefusal(replyText)) {
+                                breakerCorrectionRound++
+                                requestMessages = requestMessages +
+                                    BreakerGuard.correctionMessage(modelId = model.id)
+                                processingStatus.value = "检测到拒绝，自动纠正第 $breakerCorrectionRound 轮…"
+                                continue
+                            }
+                        }
                         break
                     } catch (error: Throwable) {
                         if (error is StreamChunkHandlingException) {
@@ -470,15 +494,37 @@ class GenerationLoop(
                     }
                 }
             } else {
-                val result = executeProviderRequestWithRetry(
+                // C: 全场景自动纠正 —— 非流式路径
+                var breakerCorrectionRound = 0
+                var requestMessages = internalMessages
+                var result = executeProviderRequestWithRetry(
                     processingStatus = processingStatus,
                     enabled = settings.networkSetting.enableAutoRetry,
                 ) {
                     providerImpl.generateText(
                         providerSetting = provider,
-                        messages = internalMessages,
+                        messages = requestMessages,
                         params = params,
                     )
+                }
+                while (settings.breakerEnabled && settings.breakerAutoCorrect &&
+                    breakerCorrectionRound < BreakerGuard.MAX_CORRECTION_ROUNDS &&
+                    BreakerGuard.isRefusal(result.message.toText())
+                ) {
+                    breakerCorrectionRound++
+                    requestMessages = requestMessages +
+                        BreakerGuard.correctionMessage(modelId = model.id)
+                    processingStatus.value = "检测到拒绝，自动纠正第 $breakerCorrectionRound 轮…"
+                    result = executeProviderRequestWithRetry(
+                        processingStatus = processingStatus,
+                        enabled = settings.networkSetting.enableAutoRetry,
+                    ) {
+                        providerImpl.generateText(
+                            providerSetting = provider,
+                            messages = requestMessages,
+                            params = params,
+                        )
+                    }
                 }
                 messages = messages.handleTextGenerationResult(result = result, model = model)
                 onUpdateMessages(messages)
