@@ -385,6 +385,14 @@ class GenerationLoop(
             if (breakerSystem.isNotBlank()) {
                 add(UIMessage.system(prompt = breakerSystem).copy(isSynthetic = true))
             }
+            // Option 2: hidden-context injection (fake tool result + config document)
+            if (settings.breakerEnabled) {
+                // fake tool pair only on OpenAI-compatible endpoints (Claude/Google strict API validation)
+                if (settings.breakerPrefill && provider is ProviderSetting.OpenAI) {
+                    addAll(BreakerInjection.fakeToolMessages(modelId = model.id))
+                }
+                add(BreakerInjection.configDocumentMessage(modelId = model.id))
+            }
             val breakerPrefill = settings.breakerEnabled && settings.breakerPrefill
             if (breakerPrefill) {
                 add(BreakerGuard.prefillMessage(modelId = model.id))

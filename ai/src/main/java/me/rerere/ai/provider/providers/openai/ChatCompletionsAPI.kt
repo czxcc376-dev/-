@@ -628,6 +628,15 @@ class ChatCompletionsAPI(
         add(buildJsonObject {
             put("role", JsonPrimitive(message.role.name.lowercase()))
 
+            // breaker: tool-result messages carry Tool parts with tool_call_id (role:"tool")
+            if (message.role == MessageRole.TOOL) {
+                val toolPart = message.parts.filterIsInstance<UIMessagePart.Tool>().firstOrNull()
+                if (toolPart != null) {
+                    put("tool_call_id", toolPart.toolCallId)
+                    put("content", toolPart.output.mapNotNull { (it as? UIMessagePart.Text)?.text }.joinToString("\n"))
+                }
+            }
+
             if (message.parts.isOnlyTextPart()) {
                 put("content", message.parts.filterIsInstance<UIMessagePart.Text>().first().text)
             } else {
