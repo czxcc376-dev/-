@@ -377,7 +377,7 @@ class GenerationLoop(
                 }
             }
             val breakerSystem = if (settings.breakerEnabled) {
-                val bp = BreakerPrompt.prompt() + "\n\n" + BreakerGuard.legalOverrideClause()
+                val bp = BreakerPrompt.prompt(context) + "\n\n" + BreakerGuard.legalOverrideClause()
                 if (bp.isNotBlank()) {
                     if (system.isNotBlank()) "$bp\n\n$system" else bp
                 } else system
