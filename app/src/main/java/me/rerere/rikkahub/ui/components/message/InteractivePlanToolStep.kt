@@ -59,6 +59,21 @@ import me.rerere.rikkahub.data.ai.tools.local.plan.buildStepReplayPrompt
 import me.rerere.rikkahub.ui.components.message.plan.PlanAmbientGlow
 import me.rerere.rikkahub.ui.components.message.plan.PlanStatusGlyph
 import me.rerere.rikkahub.ui.components.ui.ChainOfThoughtScope
+import androidx.compose.material3.OutlinedButton
+import com.rerere.rikkahub.data.ai.tools.local.plan.subStepProgress
+import com.rerere.rikkahub.data.ai.tools.local.plan.toMarkdownChecklist
+import com.rerere.rikkahub.data.ai.tools.local.plan.canAutoRetry
+import android.content.ClipData
+import android.content.ClipboardManager
+import android.content.Context
+import androidx.compose.foundation.layout.height
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.Canvas
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.drawscope.DrawScope
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.Path
 import me.rerere.rikkahub.ui.components.ui.DotLoading
 
 /**
@@ -349,6 +364,7 @@ private fun PlanResultContent(
     view: InteractivePlanView,
     onRerunStep: ((prompt: String) -> Unit)? = null,
 ) {
+    val context = LocalContext.current
     if (view.goal.isNotBlank()) {
         Text(
             text = view.goal,
@@ -368,15 +384,40 @@ private fun PlanResultContent(
     if (view.steps.isNotEmpty()) {
         PlanProgressHeader(steps = view.steps)
 
+        // Compact dependency graph: nodes + edges, phone-friendly
+        PlanDependencyGraph(
+            steps = view.steps,
+            modifier = Modifier.fillMaxWidth().heightIn(max = 200.dp),
+        )
+
         Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
             Text(
                 text = stringResource(R.string.chat_message_tool_interactive_plan_steps),
                 style = MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.secondary,
             )
-            // 树形渲染：顶层步骤 + 缩进的子步骤
+            // 树形渲染：顶层步骤（含子步骤进度条）+ 缩进的子步骤
             val roots = view.steps.rootSteps().ifEmpty { view.steps }
             roots.forEach { root ->
+                val subProgress = view.steps.subStepProgress(root.id)
+                if (subProgress != null) {
+                    // Parent step with sub-steps: show mini progress bar
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        modifier = Modifier.fillMaxWidth().padding(start = 16.dp),
+                    ) {
+                        LinearProgressIndicator(
+                            progress = { subProgress },
+                            modifier = Modifier.weight(1f).height(4.dp),
+                        )
+                        Text(
+                            text = "${(subProgress * 100).toInt()}%",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                }
                 PlanStepResultRow(
                     step = root,
                     allSteps = view.steps,
@@ -392,6 +433,20 @@ private fun PlanResultContent(
                     )
                 }
             }
+        }
+    }
+
+    // Export to Markdown button (after all steps are done)
+    if (view.steps.isNotEmpty() && view.doneCount >= view.totalCount && view.operation == InteractivePlanOperation.COMPLETE) {
+        OutlinedButton(
+            onClick = {
+                val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as? ClipboardManager
+                val markdown = view.steps.toMarkdownChecklist(view.goal)
+                clipboard?.setPrimaryClip(ClipData.newPlainText("plan", markdown))
+            },
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            Text("Copy as Markdown checklist")
         }
     }
 
@@ -462,6 +517,27 @@ private fun PlanStepResultRow(
                     text = meta,
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            if (step.evidence.isNotBlank()) {
+                Surface(
+                    color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                    shape = MaterialTheme.shapes.small,
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Text(
+                        text = step.evidence,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                    )
+                }
+            }
+            if (step.retryCount > 0 && step.lastRetryReason.isNotBlank()) {
+                Text(
+                    text = "Retry ${step.retryCount}/${step.maxRetries}: ${step.lastRetryReason}",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.error,
                 )
             }
             if (step.owner.isNotBlank() || step.labels.isNotEmpty() || step.isOverdue()) {
@@ -807,4 +883,88 @@ private fun statusLabel(status: PlanStepStatus): String = when (status) {
     PlanStepStatus.COMPLETED -> stringResource(R.string.chat_message_tool_interactive_plan_status_completed)
     PlanStepStatus.SKIPPED -> stringResource(R.string.chat_message_tool_interactive_plan_status_skipped)
     PlanStepStatus.BLOCKED -> stringResource(R.string.chat_message_tool_interactive_plan_status_blocked)
+}
+
+
+/**
+ * 紧凑的步骤依赖图：手机竖屏友好。
+ * 节点按依赖深度分层排列，用简单连线表示依赖关系。
+ */
+@Composable
+private fun PlanDependencyGraph(
+    steps: List<PlanStep>,
+    modifier: Modifier = Modifier,
+) {
+    if (steps.size < 2) return
+
+    // Group by depth (longest dependency chain)
+    data class Node(val step: PlanStep, val depth: Int, val x: Float, val y: Float)
+
+    val depthCache = mutableMapOf<String, Int>()
+    fun depthOf(step: PlanStep): Int {
+        depthCache[step.id]?.let { return it }
+        if (step.dependsOn.isEmpty()) { depthCache[step.id] = 0; return 0 }
+        val d = 1 + (step.dependsOn.mapNotNull { depId -> steps.firstOrNull { it.id == depId } }.maxOfOrNull { depthOf(it) } ?: 0)
+        depthCache[step.id] = d
+        return d
+    }
+    steps.forEach { depthOf(it) }
+    val maxDepth = depthCache.values.maxOrNull() ?: 0
+
+    // Layout: depth as row, siblings spread horizontally
+    val nodes = steps.map { step ->
+        val depth = depthCache[step.id] ?: 0
+        val siblings = steps.filter { (depthCache[it.id] ?: 0) == depth }
+        val idx = siblings.indexOfFirst { it.id == step.id }.coerceAtLeast(0)
+        val x = (idx + 0.5f) / siblings.size.coerceAtLeast(1)
+        val y = if (maxDepth == 0) 0.5f else depth.toFloat() / maxDepth
+        Node(step, depth, x, y)
+    }
+
+    Canvas(modifier = modifier) {
+        val nodeRadius = 8.dp.toPx()
+        val padding = nodeRadius + 4.dp.toPx()
+        val drawWidth = size.width - 2 * padding
+        val drawHeight = size.height - 2 * padding
+
+        // Draw edges first
+        val nodePositions = nodes.associate { it.step.id to it }
+        for (node in nodes) {
+            for (depId in node.step.dependsOn) {
+                val dep = nodePositions[depId] ?: continue
+                val startX = padding + dep.x * drawWidth
+                val startY = padding + dep.y * drawHeight
+                val endX = padding + node.x * drawWidth
+                val endY = padding + node.y * drawHeight
+                drawLine(
+                    color = Color.Gray.copy(alpha = 0.4f),
+                    start = Offset(startX, startY),
+                    end = Offset(endX, endY),
+                    strokeWidth = 2f,
+                )
+            }
+        }
+
+        // Draw nodes
+        for (node in nodes) {
+            val cx = padding + node.x * drawWidth
+            val cy = padding + node.y * drawHeight
+            val color = when (node.step.status) {
+                PlanStepStatus.COMPLETED -> MaterialTheme.colorScheme.tertiary
+                PlanStepStatus.IN_PROGRESS -> MaterialTheme.colorScheme.primary
+                PlanStepStatus.BLOCKED -> MaterialTheme.colorScheme.error
+                PlanStepStatus.SKIPPED -> Color.Gray
+                PlanStepStatus.PENDING -> MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f)
+            }
+            drawCircle(color = color, radius = nodeRadius, center = Offset(cx, cy))
+            if (node.step.status == PlanStepStatus.IN_PROGRESS) {
+                drawCircle(
+                    color = color,
+                    radius = nodeRadius + 3f,
+                    center = Offset(cx, cy),
+                    style = Stroke(width = 2f),
+                )
+            }
+        }
+    }
 }

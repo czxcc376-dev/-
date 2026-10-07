@@ -141,6 +141,22 @@ fun buildInteractivePlanTool(): Tool = Tool(
                                 put("type", "integer")
                                 put("description", "Estimated minutes for this step, used for overdue reminders.")
                             })
+                            put("evidence", buildJsonObject {
+                                put("type", "string")
+                                put("description", "Execution evidence: output snippet, command result, file diff. Fill when completing a step.")
+                            })
+                            put("retryCount", buildJsonObject {
+                                put("type", "integer")
+                                put("description", "Retry attempts after blocked. Client-managed, echo back if known.")
+                            })
+                            put("maxRetries", buildJsonObject {
+                                put("type", "integer")
+                                put("description", "Max auto-retries before user intervention. Default 3.")
+                            })
+                            put("lastRetryReason", buildJsonObject {
+                                put("type", "string")
+                                put("description", "Why the last retry was attempted.")
+                            })
                         })
                         put("required", buildJsonArray {
                             add("id")
@@ -313,6 +329,9 @@ How to use it:
 - Use `complete` when the whole goal is achieved. Use `cancel` only if the user abandons the task.
 - Never fabricate user answers. If a required answer is missing, ask again.
 
+Completion summary:
+- When you call `complete`, set `message` to a brief summary: what was done, total steps, what was skipped/blocked and why, and any follow-up suggestions. This becomes the final record of the task.
+
 Questions:
 - Only ask questions you genuinely need answered. Prefer `single`/`multi` with concrete options over free text.
 - Use `dependsOn` to make a question conditional: it only shows when a previous question was answered a certain way. This avoids asking irrelevant follow-ups.
@@ -323,6 +342,17 @@ Steps & progress:
 - Use `dependsOn` on a step to declare prerequisites. The UI shows dependency state and progress.
 - Keep the plan honest: exactly one step `in_progress` at a time, and mark steps `completed` as you truly finish them so the progress bar reflects reality.
 - Set `blockedReason` when a step is blocked so the user can help unblock it.
+
+Auto-advance:
+- After marking a step `completed`, immediately call `create_or_update` with the next step `in_progress` and continue executing WITHOUT waiting for user input.
+- Only stop to ask the user when: a required question is unanswered, a step exceeds maxRetries, or a decision is genuinely needed.
+
+Evidence:
+- When marking a step `completed`, fill `evidence` with what you did: output snippets, file paths, command results. The user wants to verify, not just see a checkmark.
+
+Retry policy:
+- If a step gets blocked, try a different approach automatically (up to `maxRetries`, default 3). Set `retryCount` and `lastRetryReason`.
+- Only surface the block to the user after exhausting retries. Always explain what you tried before giving up.
 
 Structure & collaboration:
 - Decompose big steps with `parentId` instead of making a flat, overwhelming list. Keep nesting to 2 levels.

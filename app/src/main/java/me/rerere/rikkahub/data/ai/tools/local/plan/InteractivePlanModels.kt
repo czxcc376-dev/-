@@ -47,6 +47,14 @@ data class PlanStep(
     val modelHint: String = "",
     /** 该步骤的预计耗时（分钟），用于逾期提醒。 */
     val estimatedMinutes: Int = 0,
+    /** 步骤执行证据：输出片段、命令结果、文件 diff 等（由 AI 或用户填入）。 */
+    val evidence: String = "",
+    /** 重试计数：被阻塞后自动重试的次数。 */
+    val retryCount: Int = 0,
+    /** 最大重试次数（默认 3，超过后需要用户介入）。 */
+    val maxRetries: Int = 3,
+    /** 上一次重试的原因（为什么要换方案）。 */
+    val lastRetryReason: String = "",
 ) {
     /** 是否已经收尾（完成或跳过）。 */
     val isDone: Boolean get() = status == PlanStepStatus.COMPLETED || status == PlanStepStatus.SKIPPED
@@ -77,6 +85,10 @@ data class PlanStep(
             owner = userStep.owner ?: owner,
             labels = userStep.labels ?: labels,
             modelHint = userStep.modelHint ?: modelHint,
+            evidence = userStep.evidence ?: evidence,
+            retryCount = userStep.retryCount ?: retryCount,
+            maxRetries = userStep.maxRetries ?: maxRetries,
+            lastRetryReason = userStep.lastRetryReason ?: lastRetryReason,
         )
     }
 
@@ -236,6 +248,10 @@ data class UserPlanStep(
     val owner: String? = null,
     val labels: List<String>? = null,
     val modelHint: String? = null,
+    val evidence: String? = null,
+    val retryCount: Int? = null,
+    val maxRetries: Int? = null,
+    val lastRetryReason: String? = null,
 )
 
 /**
@@ -374,6 +390,98 @@ fun List<PlanStep>.childrenOf(parentId: String): List<PlanStep> =
  * 加权进度（含子步骤）：按树形展开计算，父步骤的进度由自身状态与其子步骤共同决定。
  * 保证父步骤完成度不会超过其未完成子步骤的进度。
  */
+/** 计算某步骤的子步骤进度（0f..1f）。无子步骤返回 null。 */
+fun List<PlanStep>.subStepProgress(parentId: String): Float? {
+    val children = childrenOf(parentId)
+    if (children.isEmpty()) return null
+    val score = children.sumOf { child ->
+        val subProgress = subStepProgress(child.id)
+        when {
+            subProgress != null -> subProgress.toDouble()
+            child.isDone -> 1.0
+            child.status == PlanStepStatus.IN_PROGRESS -> 0.5
+            else -> 0.0
+        }
+    }
+    return (score / children.size).toFloat().coerceIn(0f, 1f)
+}
+
+/** 找到下一个应该执行的步骤（依赖已满足的第一个 pending 顶层/子步骤）。 */
+fun List<PlanStep>.nextExecutableStep(): PlanStep? {
+    val roots = rootSteps()
+    for (root in roots) {
+        if (root.status != PlanStepStatus.PENDING) continue
+        if (unmetDependencies(root, this).isNotEmpty()) continue
+        // Check if it has children that need to run first
+        val children = childrenOf(root.id)
+        if (children.isEmpty()) return root
+        // Find first executable child
+        val nextChild = children.filter { it.status == PlanStepStatus.PENDING }
+            .firstOrNull { unmetDependencies(it, this).isEmpty() }
+        return nextChild ?: root
+    }
+    return null
+}
+
+/** 自动推进：完成当前步骤后，把下一个可执行的步骤标记为 in_progress。 */
+fun List<PlanStep>.autoAdvance(justCompletedId: String, now: Long = System.currentTimeMillis()): List<PlanStep> {
+    val next = nextExecutableStep()
+    if (next == null) return this
+    return map { step ->
+        if (step.id == next.id && step.status == PlanStepStatus.PENDING) {
+            step.withStatus(PlanStepStatus.IN_PROGRESS, now)
+        } else {
+            step
+        }
+    }
+}
+
+/** 判断是否可以自动重试：步骤被阻塞且重试次数未超限。 */
+fun PlanStep.canAutoRetry(): Boolean =
+    status == PlanStepStatus.BLOCKED && retryCount < maxRetries
+
+/** 生成 Markdown 导出格式的计划清单。 */
+fun List<PlanStep>.toMarkdownChecklist(goal: String, elapsed: Long? = null): String {
+    val sb = StringBuilder()
+    sb.appendLine("# $goal")
+    if (elapsed != null) {
+        val minutes = elapsed / 60000
+        val seconds = (elapsed % 60000) / 1000
+        sb.appendLine("> Total time: ${minutes}m ${seconds}s")
+    }
+    sb.appendLine()
+    val roots = rootSteps()
+    fun renderStep(step: PlanStep, depth: Int) {
+        val indent = "  ".repeat(depth)
+        val check = when (step.status) {
+            PlanStepStatus.COMPLETED -> "x"
+            PlanStepStatus.SKIPPED -> "-"
+            PlanStepStatus.IN_PROGRESS -> "~"
+            PlanStepStatus.BLOCKED -> "!"
+            PlanStepStatus.PENDING -> " "
+        }
+        sb.appendLine("$indent- [$check] ${step.title}")
+        if (step.detail.isNotBlank()) {
+            sb.appendLine("$indent  ${step.detail}")
+        }
+        if (step.evidence.isNotBlank()) {
+            sb.appendLine("$indent  > Evidence: ${step.evidence}")
+        }
+        if (step.blockedReason.isNotBlank()) {
+            sb.appendLine("$indent  > Blocked: ${step.blockedReason}")
+        }
+        val elapsedStr = step.elapsedMillis()
+        if (elapsedStr != null && elapsedStr > 0) {
+            val m = elapsedStr / 60000
+            val sec = (elapsedStr % 60000) / 1000
+            sb.appendLine("$indent  > Time: ${m}m ${sec}s")
+        }
+        childrenOf(step.id).forEach { child -> renderStep(child, depth + 1) }
+    }
+    roots.forEach { renderStep(it, 0) }
+    return sb.toString()
+}
+
 fun List<PlanStep>.treeWeightedProgress(): Float {
     if (isEmpty()) return 0f
     val byParent = groupBy { it.parentId }
