@@ -411,13 +411,13 @@ fun List<PlanStep>.nextExecutableStep(): PlanStep? {
     val roots = rootSteps()
     for (root in roots) {
         if (root.status != PlanStepStatus.PENDING) continue
-        if (unmetDependencies(root, this).isNotEmpty()) continue
+        if (root.unmetDependencies(this).isNotEmpty()) continue
         // Check if it has children that need to run first
         val children = childrenOf(root.id)
         if (children.isEmpty()) return root
         // Find first executable child
         val nextChild = children.filter { it.status == PlanStepStatus.PENDING }
-            .firstOrNull { unmetDependencies(it, this).isEmpty() }
+            .firstOrNull { it.unmetDependencies(this).isEmpty() }
         return nextChild ?: root
     }
     return null

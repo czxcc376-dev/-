@@ -60,9 +60,9 @@ import me.rerere.rikkahub.ui.components.message.plan.PlanAmbientGlow
 import me.rerere.rikkahub.ui.components.message.plan.PlanStatusGlyph
 import me.rerere.rikkahub.ui.components.ui.ChainOfThoughtScope
 import androidx.compose.material3.OutlinedButton
-import com.rerere.rikkahub.data.ai.tools.local.plan.subStepProgress
-import com.rerere.rikkahub.data.ai.tools.local.plan.toMarkdownChecklist
-import com.rerere.rikkahub.data.ai.tools.local.plan.canAutoRetry
+import me.rerere.rikkahub.data.ai.tools.local.plan.subStepProgress
+import me.rerere.rikkahub.data.ai.tools.local.plan.toMarkdownChecklist
+import me.rerere.rikkahub.data.ai.tools.local.plan.canAutoRetry
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
@@ -399,7 +399,7 @@ private fun PlanResultContent(
             // 树形渲染：顶层步骤（含子步骤进度条）+ 缩进的子步骤
             val roots = view.steps.rootSteps().ifEmpty { view.steps }
             roots.forEach { root ->
-                val subProgress = view.steps.subStepProgress(root.id)
+                val subProgress: Float? = view.steps.subStepProgress(root.id)
                 if (subProgress != null) {
                     // Parent step with sub-steps: show mini progress bar
                     Row(
@@ -412,7 +412,7 @@ private fun PlanResultContent(
                             modifier = Modifier.weight(1f).height(4.dp),
                         )
                         Text(
-                            text = "${(subProgress * 100).toInt()}%",
+                            text = "${(subProgress * 100f).toInt()}%",
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
@@ -921,6 +921,13 @@ private fun PlanDependencyGraph(
         Node(step, depth, x, y)
     }
 
+    // Pre-compute colors outside Canvas (MaterialTheme is @Composable)
+    val completedColor = MaterialTheme.colorScheme.tertiary
+    val inProgressColor = MaterialTheme.colorScheme.primary
+    val blockedColor = MaterialTheme.colorScheme.error
+    val skippedColor = Color.Gray
+    val pendingColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f)
+
     Canvas(modifier = modifier) {
         val nodeRadius = 8.dp.toPx()
         val padding = nodeRadius + 4.dp.toPx()
@@ -950,11 +957,11 @@ private fun PlanDependencyGraph(
             val cx = padding + node.x * drawWidth
             val cy = padding + node.y * drawHeight
             val color = when (node.step.status) {
-                PlanStepStatus.COMPLETED -> MaterialTheme.colorScheme.tertiary
-                PlanStepStatus.IN_PROGRESS -> MaterialTheme.colorScheme.primary
-                PlanStepStatus.BLOCKED -> MaterialTheme.colorScheme.error
-                PlanStepStatus.SKIPPED -> Color.Gray
-                PlanStepStatus.PENDING -> MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f)
+                PlanStepStatus.COMPLETED -> completedColor
+                PlanStepStatus.IN_PROGRESS -> inProgressColor
+                PlanStepStatus.BLOCKED -> blockedColor
+                PlanStepStatus.SKIPPED -> skippedColor
+                PlanStepStatus.PENDING -> pendingColor
             }
             drawCircle(color = color, radius = nodeRadius, center = Offset(cx, cy))
             if (node.step.status == PlanStepStatus.IN_PROGRESS) {
