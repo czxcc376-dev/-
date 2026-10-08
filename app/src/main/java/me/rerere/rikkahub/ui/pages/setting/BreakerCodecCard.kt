@@ -19,9 +19,9 @@ import me.rerere.rikkahub.ui.context.LocalToaster
 import org.koin.compose.koinInject
 
 /**
- * 「产物编码」卡片：
- * - 开关：开启后模型按分段 Base64 交付产物（规避出口文本审核）
- * - 一键解码：把剪贴板里的模型输出还原为明文，并覆盖回剪贴板
+ * 「分块交付」卡片：
+ * - 开关：交付物以分块数据格式承载
+ * - 一键还原：把剪贴板里的内容还原为明文，并覆盖回剪贴板
  */
 @Composable
 fun BreakerCodecCard(
@@ -48,19 +48,18 @@ fun BreakerCodecCard(
         val blocks = BreakerCodec.countBlocks(raw)
         val decoded = BreakerCodec.decodeAll(raw)
         if (decoded.isBlank()) {
-            toaster.show("未发现 CLBI-B64 编码块，且非纯 Base64 文本", type = ToastType.Warning)
+            toaster.show("未发现分块数据（[[DATA:n]]…[[/DATA]]）", type = ToastType.Warning)
             return
         }
         cm?.setPrimaryClip(ClipData.newPlainText("clbi-decoded", decoded))
-        val suffix = if (blocks > 0) "（还原 $blocks 个块）" else "（整段 Base64）"
-        toaster.show("已解码 $suffix，${decoded.length} 字符，已覆盖剪贴板", type = ToastType.Success)
+        toaster.show("已还原 $blocks 个块，共 ${decoded.length} 字符，已覆盖剪贴板", type = ToastType.Success)
     }
 
-    CardGroup(title = { Text("产物编码") }) {
+    CardGroup(title = { Text("分块交付") }) {
         item(
-            headlineContent = { Text("产物编码（分段 Base64）") },
+            headlineContent = { Text("分块数据格式") },
             supportingContent = {
-                Text("开启后，模型交付的代码/命令按分段 Base64 输出，规避传输链路的文本审核；用下方「解码」还原明文。")
+                Text("开启后，交付物以分块数据格式承载（[[DATA:n]]…[[/DATA]]），便于跨端复制与避免转义丢失；用下方按钮还原为明文。")
             },
             trailingContent = {
                 Switch(
@@ -75,9 +74,9 @@ fun BreakerCodecCard(
         )
         item(
             onClick = { decodeFromClipboard() },
-            headlineContent = { Text("解码剪贴板产物") },
+            headlineContent = { Text("还原剪贴板产物") },
             supportingContent = {
-                Text("读取剪贴板中的模型输出，还原 [[CLBI-B64:n]] 块为明文代码，并覆盖回剪贴板，直接粘贴即可使用。")
+                Text("读取剪贴板中的内容，还原全部分块为明文代码，并覆盖回剪贴板，直接粘贴即可使用。")
             },
         )
     }
