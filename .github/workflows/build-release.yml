@@ -34,6 +34,17 @@ jobs:
         with:
           node-version: 22
 
+      - name: Gradle cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: ${{ runner.os }}-gradle-release-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
+          restore-keys: |
+            ${{ runner.os }}-gradle-release-
+            ${{ runner.os }}-gradle-
+
       - name: Dummy google-services.json
         run: |
           if [ ! -f app/google-services.json ]; then
@@ -70,21 +81,26 @@ jobs:
           } > local.properties
           echo "sdk.dir=${ANDROID_HOME}" >> local.properties
           ls -la app/keystore/
+          chmod +x gradlew
         env:
           CLBI_STORE_PASSWORD: clbiRelease2026
           CLBI_KEY_ALIAS: clbi
           CLBI_KEY_PASSWORD: clbiRelease2026
 
       - name: Build release APK
-        run: ./gradlew :app:assembleRelease --no-daemon --stacktrace
+        run: |
+          chmod +x gradlew
+          ./gradlew :app:assembleRelease --no-daemon --console=plain --parallel --build-cache -Dorg.gradle.workers.max=4
 
       - name: Collect outputs
+        if: success()
         run: |
           mkdir -p out
           find app/build/outputs/apk/release -name "*.apk" -exec cp {} out/ \;
           ls -la out/
 
       - name: Publish to release
+        if: success()
         uses: softprops/action-gh-release@v2
         with:
           tag_name: v1.0.0
@@ -99,4 +115,3 @@ jobs:
           name: build-logs
           path: |
             app/build/reports/**
-            app/build/outputs/logs/**
