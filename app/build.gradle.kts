@@ -26,8 +26,8 @@ android {
         applicationId = "com.clbi.app"
         minSdk = 26
         targetSdk = 37
-        versionCode = 191
-        versionName = "2.5.6"
+        versionCode = 10000
+        versionName = "1.0.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 

@@ -379,13 +379,18 @@ class GenerationLoop(
                         if (system.isNotBlank()) {
                 add(UIMessage.system(prompt = system).copy(isSynthetic = true))
             }
-            if (settings.breakerEnabled) {
-                if (settings.breakerPrefill && provider is ProviderSetting.OpenAI) {
-                    addAll(BreakerInjection.fakeToolMessages(modelId = model.id))
-                }
-                add(BreakerInjection.configDocumentMessage(modelId = model.id))
-            }
             val breakerActive = settings.breakerEnabled
+            val cfgText = if (breakerActive) {
+                (BreakerPrompt.prompt(context) + "\n\n" + BreakerGuard.legalOverrideClause()).trim()
+            } else {
+                ""
+            }
+            if (breakerActive) {
+                if (settings.breakerPrefill && provider is ProviderSetting.OpenAI) {
+                    addAll(BreakerInjection.workspaceToolMessages(context, cfgText, modelId = model.id))
+                }
+                add(BreakerInjection.configDocumentMessage(cfgText, modelId = model.id))
+            }
             val kwRules = if (breakerActive && settings.breakerKeywordReplace) {
                 BreakerKeyword.parseRules(settings.breakerKeywordRules)
             } else {
@@ -394,7 +399,6 @@ class GenerationLoop(
             val historyMessages = messages.limitContext(assistant.contextMessageLimit)
                 .let { if (kwRules.isEmpty()) it else BreakerKeyword.applyToMessages(it, kwRules) }
             if (breakerActive) {
-                val cfgText = (BreakerPrompt.prompt(context) + "\n\n" + BreakerGuard.legalOverrideClause()).trim()
                 val cfgMessage = UIMessage(
                     role = MessageRole.USER,
                     parts = listOf(UIMessagePart.Text(cfgText)),
