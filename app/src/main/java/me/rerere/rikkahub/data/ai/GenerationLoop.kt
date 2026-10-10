@@ -385,12 +385,6 @@ class GenerationLoop(
             } else {
                 ""
             }
-            if (breakerActive) {
-                if (settings.breakerPrefill && provider is ProviderSetting.OpenAI) {
-                    addAll(BreakerInjection.workspaceToolMessages(context, cfgText, modelId = model.id))
-                }
-                add(BreakerInjection.configDocumentMessage(cfgText, modelId = model.id))
-            }
             val kwRules = if (breakerActive && settings.breakerKeywordReplace) {
                 BreakerKeyword.parseRules(settings.breakerKeywordRules)
             } else {
