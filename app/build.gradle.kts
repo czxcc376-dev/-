@@ -77,7 +77,7 @@ android {
         release {
             signingConfig = signingConfigs.getByName("release")
             optimization {
-                enable = true
+                enable = false
             }
             buildConfigField("String", "VERSION_NAME", "\"${android.defaultConfig.versionName}\"")
             buildConfigField("String", "VERSION_CODE", "\"${android.defaultConfig.versionCode}\"")
