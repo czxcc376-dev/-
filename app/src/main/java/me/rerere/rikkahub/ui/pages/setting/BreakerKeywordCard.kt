@@ -1,15 +1,19 @@
 package me.rerere.rikkahub.ui.pages.setting
 
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.dokar.sonner.ToastType
 import kotlinx.coroutines.launch
@@ -63,19 +67,22 @@ fun BreakerKeywordCard(
                 OutlinedTextField(
                     value = draft,
                     onValueChange = { draft = it },
-                    modifier = androidx.compose.ui.Modifier.fillMaxWidth(),
-                    label = { Text("每行 原词=>替换词；留空使用内置表") },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 4.dp),
+                    label = { Text("每行 原词=>替换词，留空用内置表") },
                     minLines = 3,
                     maxLines = 8,
                 )
             },
             trailingContent = {
-                androidx.compose.material3.TextButton(
+                TextButton(
                     onClick = {
+                        val count = BreakerKeyword.ruleCount(draft)
                         scope.launch {
                             settingsStore.update { it.copy(breakerKeywordRules = draft) }
                         }
-                        toaster.show("已保存，生效 ${BreakerKeyword.ruleCount(draft)} 条", type = ToastType.Success)
+                        toaster.show("已保存，生效 $count 条", type = ToastType.Success)
                     },
                 ) { Text("保存") }
             },
@@ -86,7 +93,7 @@ fun BreakerKeywordCard(
                 scope.launch {
                     settingsStore.update { it.copy(breakerKeywordRules = "") }
                 }
-                toaster.show("已恢复内置默认规则（${BreakerKeyword.ruleCount("")} 条）", type = ToastType.Success)
+                toaster.show("已恢复内置默认规则", type = ToastType.Success)
             },
             headlineContent = { Text("恢复内置默认表") },
             supportingContent = { Text("清空自定义规则，使用内置默认替换表") },
