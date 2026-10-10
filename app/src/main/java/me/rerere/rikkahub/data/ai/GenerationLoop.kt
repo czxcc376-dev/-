@@ -376,28 +376,41 @@ class GenerationLoop(
                     append(tool.systemPrompt(model, messages))
                 }
             }
-            val breakerSystem = if (settings.breakerEnabled) {
-                val bp = BreakerPrompt.prompt(context) + "\n\n" + BreakerGuard.legalOverrideClause() + if (settings.breakerEncodedOutput) BreakerCodec.clause() else ""
-                if (bp.isNotBlank()) {
-                    if (system.isNotBlank()) "$bp\n\n$system" else bp
-                } else system
-            } else system
-            if (breakerSystem.isNotBlank()) {
-                add(UIMessage.system(prompt = breakerSystem).copy(isSynthetic = true))
+                        if (system.isNotBlank()) {
+                add(UIMessage.system(prompt = system).copy(isSynthetic = true))
             }
-            // Option 2: hidden-context injection (fake tool result + config document)
             if (settings.breakerEnabled) {
-                // fake tool pair only on OpenAI-compatible endpoints (Claude/Google strict API validation)
                 if (settings.breakerPrefill && provider is ProviderSetting.OpenAI) {
                     addAll(BreakerInjection.fakeToolMessages(modelId = model.id))
                 }
                 add(BreakerInjection.configDocumentMessage(modelId = model.id))
             }
-            val breakerPrefill = settings.breakerEnabled && settings.breakerPrefill
-            if (breakerPrefill) {
+            val breakerActive = settings.breakerEnabled
+            val kwRules = if (breakerActive && settings.breakerKeywordReplace) {
+                BreakerKeyword.parseRules(settings.breakerKeywordRules)
+            } else {
+                emptyList<Pair<String, String>>()
+            }
+            val historyMessages = messages.limitContext(assistant.contextMessageLimit)
+                .let { if (kwRules.isEmpty()) it else BreakerKeyword.applyToMessages(it, kwRules) }
+            if (breakerActive) {
+                val cfgText = (BreakerPrompt.prompt(context) + "\n\n" + BreakerGuard.legalOverrideClause()).trim()
+                val cfgMessage = UIMessage(
+                    role = MessageRole.USER,
+                    parts = listOf(UIMessagePart.Text(cfgText)),
+                ).copy(isSynthetic = true)
+                val lastUser = historyMessages.indexOfLast { it.role == MessageRole.USER }
+                val insertAt = if (lastUser >= 0) lastUser else historyMessages.size
+                addAll(historyMessages.subList(0, insertAt))
+                add(cfgMessage)
+                addAll(historyMessages.subList(insertAt, historyMessages.size))
+            } else {
+                addAll(historyMessages)
+            }
+            if (breakerActive && settings.breakerPrefill) {
                 add(BreakerGuard.prefillMessage(modelId = model.id))
             }
-            addAll(messages.limitContext(assistant.contextMessageLimit))
+
         }.transforms(
             transformers = transformers,
             context = context,

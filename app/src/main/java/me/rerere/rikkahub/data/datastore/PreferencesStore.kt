@@ -175,7 +175,8 @@ class SettingsStore(
         val BREAKER_PREFILL = booleanPreferencesKey("breaker_prefill")
         val BREAKER_AUTO_CORRECT = booleanPreferencesKey("breaker_auto_correct")
         val BREAKER_DOWNGRADE_REASONING = booleanPreferencesKey("breaker_downgrade_reasoning")
-        val BREAKER_ENCODED_OUTPUT = booleanPreferencesKey("breaker_encoded_output")
+        val BREAKER_KEYWORD_REPLACE = booleanPreferencesKey("breaker_keyword_replace")
+        val BREAKER_KEYWORD_RULES = stringPreferencesKey("breaker_keyword_rules")
 
         // 提示词注入
         val MODE_INJECTIONS = stringPreferencesKey("mode_injections")
@@ -256,7 +257,8 @@ class SettingsStore(
                 preferences[BREAKER_PREFILL] = settings.breakerPrefill
                 preferences[BREAKER_AUTO_CORRECT] = settings.breakerAutoCorrect
                 preferences[BREAKER_DOWNGRADE_REASONING] = settings.breakerDowngradeReasoning
-                preferences[BREAKER_ENCODED_OUTPUT] = settings.breakerEncodedOutput
+                preferences[BREAKER_KEYWORD_REPLACE] = settings.breakerKeywordReplace
+                preferences[BREAKER_KEYWORD_RULES] = settings.breakerKeywordRules
                 preferences[BACKUP_REMINDER_CONFIG] = JsonInstant.encodeToString(settings.backupReminderConfig)
                 preferences[LAUNCH_COUNT] = settings.launchCount
                 preferences[SPONSOR_ALERT_DISMISSED_AT] = settings.sponsorAlertDismissedAt
@@ -359,7 +361,8 @@ class SettingsStore(
                 breakerPrefill = preferences[BREAKER_PREFILL] != false,
                 breakerAutoCorrect = preferences[BREAKER_AUTO_CORRECT] != false,
                 breakerDowngradeReasoning = preferences[BREAKER_DOWNGRADE_REASONING] != false,
-                breakerEncodedOutput = preferences[BREAKER_ENCODED_OUTPUT] == true,
+                breakerKeywordReplace = preferences[BREAKER_KEYWORD_REPLACE] != false,
+                breakerKeywordRules = preferences[BREAKER_KEYWORD_RULES] ?: "",
                 backupReminderConfig = preferences[BACKUP_REMINDER_CONFIG]?.let {
                     JsonInstant.decodeFromString(it)
                 } ?: BackupReminderConfig(),
@@ -623,7 +626,8 @@ data class Settings(
     val breakerPrefill: Boolean = true,
     val breakerAutoCorrect: Boolean = true,
     val breakerDowngradeReasoning: Boolean = true,
-    val breakerEncodedOutput: Boolean = false,
+    val breakerKeywordReplace: Boolean = true,
+    val breakerKeywordRules: String = "",
     val webServerPort: Int = 8080,
     val webServerJwtEnabled: Boolean = false,
     val webServerAccessPassword: String = "",
